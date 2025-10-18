@@ -1,62 +1,65 @@
---------------------------------------------------
--- ⚡ BLACKZ AUTO-FARM COMPLETO (SEA-1)
--- Anti-agua | Anti-atascos agresivo | UI segura
---------------------------------------------------
-
+--⚡ BLACKZ AUTO-FARM "ATAQUES INVISIBLES" – SEA-1
+-- Teleporta ENCIMA del NPC → spam remoto → sin mover la patita
 local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
 local WS = game:GetService("Workspace")
+
 local Plr = Players.LocalPlayer
 local Root = Plr.Character:WaitForChild("HumanoidRootPart")
 
 local Config = {
     AutoFarm = false,
-    FarmDistance = 16,
-    AttackDelay = 0.12,
+    FarmDistance = 10,          -- altura sobre la cabeza del NPC
+    AttackDelay = 0,            -- SIN delay entre teclas (spam)
     StuckCheckDelay = 1,
     StuckThreshold = 2,
 }
 
 --------------------------------------------------
--- FUNCIONES PRINCIPALES
+-- ATAQUES "INVISIBLES" A DISTANCIA
 --------------------------------------------------
-local function isInWater(pos)
-    local ray = Ray.new(pos + Vector3.new(0, 2, 0), Vector3.new(0, -10, 0))
-    local part = workspace:FindPartOnRay(ray, nil, false, true)
-    return part and part.Material == Enum.Material.Water
+local function spamAttack()
+    -- dispara las 4 teclas casi al mismo tiempo
+    for _, k in ipairs({"E","F","R","T"}) do
+        VIM:SendKeyEvent(true, k, false, game)
+        VIM:SendKeyEvent(false, k, false, game)
+    end
 end
 
+--------------------------------------------------
+-- BUSCA NPC
+--------------------------------------------------
 local function getNearest()
     if not (Root and Root.Parent) then return nil end
     local near, dist = nil, math.huge
     for _, v in ipairs(WS.Enemies:GetChildren()) do
         if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
             local hrp = v:FindFirstChild("HumanoidRootPart")
-            if hrp and not isInWater(hrp.Position) then
+            if hrp then
                 local d = (Root.Position - hrp.Position).Magnitude
-                if d < dist then
-                    near, dist = v, d
-                end
+                if d < dist then near, dist = v, d end
             end
         end
     end
     return near
 end
 
-local function tpAttack(npc)
+--------------------------------------------------
+-- TELEPORTA ENCIMA + SPAM ATAQUES
+--------------------------------------------------
+local function tpSpam(npc)
     if not (npc and npc.Parent and Root and Root.Parent) then return end
     local hrp = npc:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
+    -- Siempre ENCIMA (sin tocar suelo)
     Root.CFrame = hrp.CFrame + Vector3.new(0, Config.FarmDistance, 0)
-    task.wait(0.2)
 
-    for _, k in ipairs({"E","F","R","T"}) do
+    -- Muchos ataques por segundo (sin delay)
+    for i = 1, 12 do          -- 12 "rafagas" rápidas
         if not (npc and npc.Parent) then break end
-        VIM:SendKeyEvent(true, k, false, game)
-        task.wait(Config.AttackDelay)
-        VIM:SendKeyEvent(false, k, false, game)
-        task.wait(Config.AttackDelay)
+        spamAttack()
+        task.wait(0.02)       -- apenas 20 ms entre ráfagas
     end
 end
 
@@ -68,22 +71,16 @@ local stuckCount = 0
 task.spawn(function()
     while task.wait(Config.StuckCheckDelay) do
         if not Config.AutoFarm then continue end
-
-        local movedDist = (Root.Position - lastPos).Magnitude
-        if movedDist < Config.StuckThreshold then
+        local moved = (Root.Position - lastPos).Magnitude
+        if moved < Config.StuckThreshold then
             stuckCount += 1
-            local elevate = math.random(8 + stuckCount*4, math.min(stuckCount*12+20,40))
-            local push = Vector3.new(math.random(-6,6), elevate, math.random(-6,-14))
+            local push = Vector3.new(math.random(-8,8), math.random(20,45), math.random(-10,-20))
             Root.CFrame = Root.CFrame + push
-            if stuckCount > 6 then
-                Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-30,30),100,-math.random(40,80)))
+            if stuckCount > 5 then
+                Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-40,40),120,-math.random(60,120)))
                 stuckCount = 0
             end
         else
-            stuckCount = math.max(stuckCount-1,0)
-        end
-        if stuckCount > 10 then
-            Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-30,30),120,-math.random(60,120)))
             stuckCount = 0
         end
         lastPos = Root.Position
@@ -91,66 +88,24 @@ task.spawn(function()
 end)
 
 --------------------------------------------------
--- INTERFAZ: BLACKZ UI
+-- UI RÁPIDA
 --------------------------------------------------
-local Library
-pcall(function()
-    Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("⚡ BLACKZ ATAQUES INVISIBLES","DarkTheme")
+local Tab = Window:NewTab("Farm")
+local Sec = Tab:NewSection("Control")
+
+Sec:NewToggle("🚀 Activar Auto-Farm","",function(s)
+    Config.AutoFarm = s
+    while Config.AutoFarm do
+        tpSpam(getNearest())
+        task.wait(0.25)     -- pequeña pausa entre NPCs
+    end
 end)
 
-if not Library then
-    --------------------------------------------------
-    -- Fallback UI si falla Kavo
-    --------------------------------------------------
-    local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-    local Frame = Instance.new("Frame", ScreenGui)
-    Frame.Size = UDim2.new(0, 300, 0, 150)
-    Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Frame.BorderSizePixel = 0
-
-    local Title = Instance.new("TextLabel", Frame)
-    Title.Size = UDim2.new(1, 0, 0, 30)
-    Title.BackgroundTransparency = 1
-    Title.Text = "⚡ BLACKZ AUTO-FARM"
-    Title.TextColor3 = Color3.fromRGB(0, 255, 255)
-    Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 22
-
-    local ToggleBtn = Instance.new("TextButton", Frame)
-    ToggleBtn.Position = UDim2.new(0.1, 0, 0.5, -15)
-    ToggleBtn.Size = UDim2.new(0.8, 0, 0, 30)
-    ToggleBtn.Text = "🚀 Activar Auto-Farm"
-    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    ToggleBtn.MouseButton1Click:Connect(function()
-        Config.AutoFarm = not Config.AutoFarm
-        ToggleBtn.Text = Config.AutoFarm and "⛔ Detener Auto-Farm" or "🚀 Activar Auto-Farm"
-        while Config.AutoFarm do
-            tpAttack(getNearest())
-            task.wait(0.4)
-        end
-    end)
-else
-    --------------------------------------------------
-    -- UI original (Kavo)
-    --------------------------------------------------
-    local Window = Library.CreateLib("⚡ BLACKZ AUTO-FARM", "DarkTheme")
-    local Tab = Window:NewTab("Farm")
-    local Sec = Tab:NewSection("Control")
-
-    Sec:NewToggle("🚀 Activar Auto-Farm","",function(s)
-        Config.AutoFarm = s
-        while Config.AutoFarm do
-            tpAttack(getNearest())
-            task.wait(0.4)
-        end
-    end)
-
-    Sec:NewSlider("📏 Distancia","",50,10,function(v)
-        Config.FarmDistance = v
-    end)
-end
+Sec:NewSlider("📏 Altura sobre NPC","",50,5,function(v)
+    Config.FarmDistance = v
+end)
 
 --------------------------------------------------
 -- ANTI-AFK
@@ -158,4 +113,3 @@ end
 Plr.Idled:Connect(function()
     game:GetService("VirtualUser"):ClickButton2(Vector2.new())
 end)
-
