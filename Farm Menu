@@ -1,19 +1,50 @@
---⚡ BLACKZ "CLIC-MUERTE-TP" – SEA-1
--- Clic invisible en pantalla → mata → MUERE → TP al siguiente
+--⚡ BLACKZ "CLIC-MUERTE-TP + AUTO-QUEST" – SEA-1
+-- Auto-selecciona misión por nivel → clic hasta matar → TP al siguiente
 local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
 local WS = game:GetService("Workspace")
+local RS = game:GetService("ReplicatedStorage")
 
 local Plr = Players.LocalPlayer
 local Root = Plr.Character:WaitForChild("HumanoidRootPart")
+local Remotes = RS:WaitForChild("Remotes")
+local CommF = Remotes:WaitForChild("CommF_")
 
-local Config = { AutoFarm = false }
+-- CONFIG
+local Config = { AutoQuest = false }
+
+-- TABLA DE MISIONES (ya la tienes)
+local Quests = return {  -- aquí pegas TU TABLA COMPLETA
+  -- (copia-pega tu tabla aquí)
+}
 
 --------------------------------------------------
--- CLIC EN PANTALLA GRANDE (sin apuntar)
+-- BUSCA MISIÓN POR NIVEL
+--------------------------------------------------
+local function getQuestForLevel()
+    local level = Plr:WaitForChild("Data"):WaitForChild("Level").Value
+    for questName, steps in pairs(Quests) do
+        for _, step in ipairs(steps) do
+            if level >= step.LevelReq then
+                return questName, step
+            end
+        end
+    end
+    return nil, nil
+end
+
+-- AUTO-TOMA MISIÓN
+local function takeQuest()
+    local quest, step = getQuestForLevel()
+    if not quest then return end
+    -- Invoca el servidor para coger la quest
+    CommF:InvokeServer("StartQuest", quest, 1)
+end
+
+--------------------------------------------------
+-- CLIC EN PANTALLA GRANDE
 --------------------------------------------------
 local function bigClick()
-    -- clic izquierdo DOWN + UP en el centro de la pantalla
     local center = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2,
                                workspace.CurrentCamera.ViewportSize.Y/2)
     VIM:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
@@ -22,15 +53,20 @@ local function bigClick()
 end
 
 --------------------------------------------------
--- BUSCA NPC VÁLIDO
+-- BUSCA NPC DE MISIÓN ACTUAL
 --------------------------------------------------
-local function getNearest()
+local function getQuestNpc()
     if not (Root and Root.Parent) then return nil end
+    local _, step = getQuestForLevel()
+    if not step then return nil end
+
+    local targetName = step.Name
     local near, dist = nil, math.huge
+
     for _, v in ipairs(WS.Enemies:GetChildren()) do
         if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
             local hrp = v:FindFirstChild("HumanoidRootPart")
-            if hrp then
+            if hrp and v.Name == targetName then
                 local d = (Root.Position - hrp.Position).Magnitude
                 if d < dist then near, dist = v, d end
             end
@@ -40,42 +76,45 @@ local function getNearest()
 end
 
 --------------------------------------------------
--- LOOP: CLICAR HASTA QUE MUERA → LUEGO TP
+-- LOOP PRINCIPAL
 --------------------------------------------------
-local function clicDeathTp()
-    Config.AutoFarm = true
-    while Config.AutoFarm do
-        local npc = getNearest()
+local function clicDeathTpLoop()
+    Config.AutoQuest = true
+    while Config.AutoQuest do
+        takeQuest()
+        local npc = getQuestNpc()
         if npc then
             local humanoid = npc:FindFirstChild("Humanoid")
-            -- clicar rápidamente hasta que muera
-            while humanoid and humanoid.Health > 0 and Config.AutoFarm do
+            -- Clicar hasta que muera
+            while humanoid and humanoid.Health > 0 and Config.AutoQuest do
                 bigClick()
-                task.wait(0.03)   -- 30 clics/seg aprox
+                task.wait(0.03) -- ~33 clics/seg
             end
-            -- MUERTO → teleporta al siguiente
-            if Config.AutoFarm then
-                local nextNpc = getNearest()
+            -- MUERTO → TP al siguiente
+            if Config.AutoQuest then
+                local nextNpc = getQuestNpc()
                 if nextNpc then
-                    Root.CFrame = nextNpc.HumanoidRootPart.CFrame + Vector3.new(0,10,0)
+                    Root.CFrame = nextNpc.HumanoidRootPart.CFrame + Vector3.new(0, 10, 0)
                 end
             end
+        else
+            task.wait(0.5)
         end
         task.wait(0.2)
     end
 end
 
 --------------------------------------------------
--- UI MÍNIMA
+-- UI
 --------------------------------------------------
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("🖱️ BLACKZ CLIC-MUERTE-TP","DarkTheme")
-local Tab = Window:NewTab("Farm")
+local Window = Library.CreateLib("🖱️ BLACKZ AUTO-QUEST","DarkTheme")
+local Tab = Window:NewTab("Quest")
 local Sec = Tab:NewSection("Control")
 
-Sec:NewToggle("🔥 Activar Clic-Muerte-TP","",function(s)
-    Config.AutoFarm = s
-    if s then clicDeathTp() end
+Sec:NewToggle("🔥 Auto-Quest Clic-Muerte-TP","",function(s)
+    Config.AutoQuest = s
+    if s then clicDeathTpLoop() end
 end)
 
 --------------------------------------------------
