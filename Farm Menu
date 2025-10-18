@@ -1,0 +1,307 @@
+-- Blox Fruits Farm Menu
+-- Script para Silver Executor
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Blox Fruits Farm - ED", "Serpent")
+
+-- Main Farm Tab
+local MainTab = Window:NewTab("Main Farm")
+local MainSection = MainTab:NewSection("Auto Farm Settings")
+
+MainSection:NewToggle("Auto Farm NPCs", "Farms nearby NPCs automatically", function(state)
+    if state then
+        getgenv().AutoFarmNPCs = true
+        StartAutoFarm()
+    else
+        getgenv().AutoFarmNPCs = false
+    end
+end)
+
+MainSection:NewToggle("Auto Boss Farm", "Auto farm bosses", function(state)
+    if state then
+        getgenv().AutoBossFarm = true
+        StartBossFarm()
+    else
+        getgenv().AutoBossFarm = false
+    end
+end)
+
+MainSection:NewToggle("Auto Quest", "Auto complete quests", function(state)
+    if state then
+        getgenv().AutoQuest = true
+        StartAutoQuest()
+    else
+        getgenv().AutoQuest = false
+    end
+end)
+
+MainSection:NewSlider("Farm Distance", "Distance from NPC", 50, 10, function(s)
+    getgenv().FarmDistance = s
+end)
+
+-- Stats Tab
+local StatsTab = Window:NewTab("Auto Stats")
+local StatsSection = StatsTab:NewSection("Auto Stats Settings")
+
+StatsSection:NewToggle("Auto Melee", "Auto upgrade melee", function(state)
+    getgenv().AutoMelee = state
+    if state then AutoStats() end
+end)
+
+StatsSection:NewToggle("Auto Defense", "Auto upgrade defense", function(state)
+    getgenv().AutoDefense = state
+    if state then AutoStats() end
+end)
+
+StatsSection:NewToggle("Auto Sword", "Auto upgrade sword", function(state)
+    getgenv().AutoSword = state
+    if state then AutoStats() end
+end)
+
+StatsSection:NewToggle("Auto Fruit", "Auto upgrade fruit", function(state)
+    getgenv().AutoFruit = state
+    if state then AutoStats() end
+end)
+
+-- Fruits Tab
+local FruitsTab = Window:NewTab("Fruits")
+local FruitsSection = FruitsTab:NewSection("Fruit Settings")
+
+FruitsSection:NewToggle("Auto Collect Fruits", "Auto collect all fruits", function(state)
+    if state then
+        getgenv().AutoCollectFruits = true
+        StartFruitCollect()
+    else
+        getgenv().AutoCollectFruits = false
+    end
+end)
+
+FruitsSection:NewToggle("Auto Store Fruits", "Auto store fruits in inventory", function(state)
+    getgenv().AutoStoreFruits = state
+end)
+
+FruitsSection:NewDropdown("Select Fruit to Eat", "Choose which fruit to eat", {"Random", "Best Rarity", "Specific Fruit"}, function(option)
+    getgenv().FruitEatOption = option
+end)
+
+-- Combat Tab
+local CombatTab = Window:NewTab("Combat")
+local CombatSection = CombatTab:NewSection("Combat Settings")
+
+CombatSection:NewToggle("Auto Use Skills", "Auto use all skills", function(state)
+    getgenv().AutoSkills = state
+end)
+
+CombatSection:NewToggle("Auto Dodge", "Auto dodge attacks", function(state)
+    getgenv().AutoDodge = state
+end)
+
+CombatSection:NewToggle("Ken Haki Auto", "Auto use Ken Haki", function(state)
+    getgenv().AutoKenHaki = state
+end)
+
+CombatSection:NewKeybind("Toggle Menu", "Keybind to toggle menu", Enum.KeyCode.RightControl, function()
+	Library:ToggleUI()
+end)
+
+-- Player Tab
+local PlayerTab = Window:NewTab("Player")
+local PlayerSection = PlayerTab:NewSection("Player Settings")
+
+PlayerSection:NewToggle("Auto Respawn", "Auto respawn when die", function(state)
+    getgenv().AutoRespawn = state
+end)
+
+PlayerSection:NewToggle("No Clip", "Walk through walls", function(state)
+    getgenv().NoClip = state
+    if state then
+        StartNoClip()
+    end
+end)
+
+PlayerSection:NewSlider("WalkSpeed", "Change walk speed", 500, 16, function(s)
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = s
+end)
+
+PlayerSection:NewSlider("JumpPower", "Change jump power", 350, 50, function(s)
+    game.Players.LocalPlayer.Character.Humanoid.JumpPower = s
+end)
+
+-- Misc Tab
+local MiscTab = Window:NewTab("Misc")
+local MiscSection = MiscTab:NewSection("Miscellaneous")
+
+MiscSection:NewButton("Teleport to Safe Zone", "Teleport to safe zone", function()
+    TeleportToSafeZone()
+end)
+
+MiscSection:NewButton("Rejoin Server", "Rejoin current server", function()
+    game:GetService("TeleportService"):Teleport(game.PlaceId)
+end)
+
+MiscSection:NewButton("Server Hop", "Switch servers", function()
+    ServerHop()
+end)
+
+MiscSection:NewLabel("Script Status: Loaded Successfully")
+MiscSection:NewLabel("Made by ED - Blox Fruits")
+
+-- Functions
+function StartAutoFarm()
+    spawn(function()
+        while getgenv().AutoFarmNPCs do
+            pcall(function()
+                local nearestNPC = FindNearestNPC()
+                if nearestNPC then
+                    TeleportToNPC(nearestNPC)
+                    AttackNPC(nearestNPC)
+                end
+            end)
+            wait(0.5)
+        end
+    end)
+end
+
+function StartBossFarm()
+    spawn(function()
+        while getgenv().AutoBossFarm do
+            pcall(function()
+                local boss = FindBoss()
+                if boss then
+                    TeleportToNPC(boss)
+                    AttackNPC(boss)
+                end
+            end)
+            wait(1)
+        end
+    end)
+end
+
+function StartAutoQuest()
+    spawn(function()
+        while getgenv().AutoQuest do
+            pcall(function()
+                -- Auto quest logic here
+            end)
+            wait(5)
+        end
+    end)
+end
+
+function StartFruitCollect()
+    spawn(function()
+        while getgenv().AutoCollectFruits do
+            pcall(function()
+                CollectFruits()
+            end)
+            wait(10)
+        end
+    end)
+end
+
+function StartNoClip()
+    spawn(function()
+        while getgenv().NoClip do
+            pcall(function()
+                if game.Players.LocalPlayer.Character then
+                    for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+            wait(0.1)
+        end
+    end)
+end
+
+function FindNearestNPC()
+    local closestNPC = nil
+    local closestDistance = math.huge
+    local playerPos = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
+    
+    for _, npc in pairs(workspace.NPCs:GetChildren()) do
+        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
+            local distance = (playerPos - npc.HumanoidRootPart.Position).Magnitude
+            if distance < closestDistance then
+                closestDistance = distance
+                closestNPC = npc
+            end
+        end
+    end
+    
+    return closestNPC
+end
+
+function FindBoss()
+    for _, boss in pairs(workspace:GetChildren()) do
+        if string.find(boss.Name:lower(), "boss") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+            return boss
+        end
+    end
+    return nil
+end
+
+function TeleportToNPC(npc)
+    if npc and npc:FindFirstChild("HumanoidRootPart") then
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = npc.HumanoidRootPart.CFrame + Vector3.new(0, getgenv().FarmDistance or 25, 0)
+    end
+end
+
+function AttackNPC(npc)
+    if npc and npc:FindFirstChild("Humanoid") then
+        -- Simulate attacks
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, "E", false, game)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, "E", false, game)
+        
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, "F", false, game)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, "F", false, game)
+        
+        if getgenv().AutoSkills then
+            game:GetService("VirtualInputManager"):SendKeyEvent(true, "R", false, game)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendKeyEvent(false, "R", false, game)
+            
+            game:GetService("VirtualInputManager"):SendKeyEvent(true, "T", false, game)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendKeyEvent(false, "T", false, game)
+        end
+    end
+end
+
+function CollectFruits()
+    for _, fruit in pairs(workspace:GetChildren()) do
+        if fruit:FindFirstChild("Handle") and string.find(fruit.Name:lower(), "fruit") then
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = fruit.Handle.CFrame
+            wait(0.5)
+        end
+    end
+end
+
+function TeleportToSafeZone()
+    -- Safe zone teleport logic
+end
+
+function ServerHop()
+    -- Server hop logic
+end
+
+function AutoStats()
+    spawn(function()
+        while getgenv().AutoMelee or getgenv().AutoDefense or getgenv().AutoSword or getgenv().AutoFruit do
+            pcall(function()
+                -- Auto stats upgrade logic
+            end)
+            wait(5)
+        end
+    end)
+end
+
+-- Initialize default values
+getgenv().FarmDistance = 25
+
+print("Blox Fruits Farm Menu loaded successfully!")
+print("Press RightControl to toggle menu")
