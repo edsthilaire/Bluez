@@ -1,71 +1,59 @@
 --------------------------------------------------
--- SEA-1 AUTO-FARM COMPLETO (Anti Agua + Anti Atascos Mejorado!)
+-- FIX: Kavo UI (para que el menú siempre aparezca)
 --------------------------------------------------
 
-local Players = game:GetService("Players")
-local VIM = game:GetService("VirtualInputManager")
-local WS = game:GetService("Workspace")
-
-local Plr = Players.LocalPlayer
-local Root = Plr.Character:WaitForChild("HumanoidRootPart")
-
-local Config = {
-    AutoFarm = false,
-    FarmDistance = 16,
-    AttackDelay = 0.12,
-    StuckCheckDelay = 1,
-    StuckThreshold = 2,
-}
-
---------------------------------------------------
--- FUNCIONES DE FARMEO & ANTI-AGUA...
---------------------------------------------------
-
--- --- Anti-Atascos Mejorado!
-local lastPos = Root.Position
-local lastUnstuck = tick()
-local stuckCount = 0
-
-task.spawn(function()
-    while task.wait(Config.StuckCheckDelay) do
-        if not Config.AutoFarm then continue end
-
-        local movedDist = (Root.Position - lastPos).Magnitude
-
-        if movedDist < Config.StuckThreshold then -- Si no se movió mucho...
-            stuckCount += 1
-
-            -- Eleva + empuja para liberarse (más agresivo):
-            local elevate = math.random(8 + stuckCount*4, math.min(stuckCount*12+20,40))
-            local push = Vector3.new(
-                math.random(-6,6),
-                elevate,
-                math.random(-6,-14)
-            )
-            Root.CFrame = Root.CFrame + push
-
-            -- Si lleva demasiado tiempo atascado...
-            if stuckCount > 6 then -- Reseteamos la posición por seguridad.
-                Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-30,30),100,-math.random(-40,-80)))
-                stuckCount = 0 -- reset count.
-            end
-
-        else -- Si se movió bien...
-            stuckCount = math.max(stuckCount-1,0)
-        end
-
-        lastPos = Root.Position
-
-        if stuckCount > 10 then -- Si sigue atascado tras muchos intentos...
-            Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-30,30),120,-math.random(-60,-120)))
-            stuckCount = 0 -- reset count.
-        end
-
-        lastUnstuck = tick()
-    end
+local Library
+pcall(function()
+    Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 end)
 
---------------------------------------------------
--- UI (Kavo)... & resto del script.
---------------------------------------------------
+if not Library then
+    -- Si falla la carga online, crea una UI básica local
+    local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+    local Frame = Instance.new("Frame", ScreenGui)
+    Frame.Size = UDim2.new(0, 300, 0, 150)
+    Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Frame.BorderSizePixel = 0
+
+    local Title = Instance.new("TextLabel", Frame)
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.BackgroundTransparency = 1
+    Title.Text = "🌊 SEA-1 AUTO-FARM"
+    Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+    Title.Font = Enum.Font.SourceSansBold
+    Title.TextSize = 22
+
+    local ToggleBtn = Instance.new("TextButton", Frame)
+    ToggleBtn.Position = UDim2.new(0.1, 0, 0.5, -15)
+    ToggleBtn.Size = UDim2.new(0.8, 0, 0, 30)
+    ToggleBtn.Text = "🚀 Activar Auto-Farm"
+    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    ToggleBtn.MouseButton1Click:Connect(function()
+        Config.AutoFarm = not Config.AutoFarm
+        ToggleBtn.Text = Config.AutoFarm and "⛔ Detener Auto-Farm" or "🚀 Activar Auto-Farm"
+        while Config.AutoFarm do
+            tpAttack(getNearest())
+            task.wait(0.4)
+        end
+    end)
+else
+    -- Si carga bien la biblioteca, usa tu código original de Kavo
+    local Window = Library.CreateLib("🌊 SEA-1 COMPLETO", "DarkTheme")
+    local Tab = Window:NewTab("Farm")
+    local Sec = Tab:NewSection("Control")
+
+    Sec:NewToggle("🚀 Activar Auto-Farm","",function(s)
+        Config.AutoFarm = s
+        while Config.AutoFarm do
+            tpAttack(getNearest())
+            task.wait(0.4)
+        end
+    end)
+
+    Sec:NewSlider("📏 Distancia","",50,10,function(v)
+        Config.FarmDistance = v
+    end)
+end
 
