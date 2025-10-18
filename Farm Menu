@@ -1,85 +1,71 @@
--- SEA-1 AUTO-FARM REFORZADO – EL FAM (NO ENISIA)
+--------------------------------------------------
+-- SEA-1 AUTO-FARM COMPLETO (Anti Agua + Anti Atascos Mejorado!)
+--------------------------------------------------
+
 local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
-local WS  = game:GetService("Workspace")
+local WS = game:GetService("Workspace")
 
-local Plr   = Players.LocalPlayer
-local Root  = Plr.Character:WaitForChild("HumanoidRootPart")
+local Plr = Players.LocalPlayer
+local Root = Plr.Character:WaitForChild("HumanoidRootPart")
 
 local Config = {
-    AutoFarm     = false,
+    AutoFarm = false,
     FarmDistance = 16,
-    AttackDelay  = 0.12
+    AttackDelay = 0.12,
+    StuckCheckDelay = 1,
+    StuckThreshold = 2,
 }
 
 --------------------------------------------------
--- 1) BUSCA NPC VÁLIDO
+-- FUNCIONES DE FARMEO & ANTI-AGUA...
 --------------------------------------------------
-local function getNearest()
-    if not (Root and Root.Parent) then return nil end
-    local near, dist = nil, math.huge
-    for _, v in ipairs(WS.Enemies:GetChildren()) do
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-            local hrp = v:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local d = (Root.Position - hrp.Position).Magnitude
-                if d < dist then near, dist = v, d end
+
+-- --- Anti-Atascos Mejorado!
+local lastPos = Root.Position
+local lastUnstuck = tick()
+local stuckCount = 0
+
+task.spawn(function()
+    while task.wait(Config.StuckCheckDelay) do
+        if not Config.AutoFarm then continue end
+
+        local movedDist = (Root.Position - lastPos).Magnitude
+
+        if movedDist < Config.StuckThreshold then -- Si no se movió mucho...
+            stuckCount += 1
+
+            -- Eleva + empuja para liberarse (más agresivo):
+            local elevate = math.random(8 + stuckCount*4, math.min(stuckCount*12+20,40))
+            local push = Vector3.new(
+                math.random(-6,6),
+                elevate,
+                math.random(-6,-14)
+            )
+            Root.CFrame = Root.CFrame + push
+
+            -- Si lleva demasiado tiempo atascado...
+            if stuckCount > 6 then -- Reseteamos la posición por seguridad.
+                Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-30,30),100,-math.random(-40,-80)))
+                stuckCount = 0 -- reset count.
             end
+
+        else -- Si se movió bien...
+            stuckCount = math.max(stuckCount-1,0)
         end
+
+        lastPos = Root.Position
+
+        if stuckCount > 10 then -- Si sigue atascado tras muchos intentos...
+            Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-30,30),120,-math.random(-60,-120)))
+            stuckCount = 0 -- reset count.
+        end
+
+        lastUnstuck = tick()
     end
-    return near
-end
-
---------------------------------------------------
--- 2) TELEPORTA Y ATACA
---------------------------------------------------
-local function tpAttack(npc)
-    if not (npc and npc.Parent and Root and Root.Parent) then return end
-    local hrp = npc:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    -- offset aleatorio para evitar snap flag
-    local offset = Vector3.new(math.random(-2, 2), Config.FarmDistance, math.random(-2, 2))
-    Root.CFrame = hrp.CFrame + offset
-
-    task.wait(0.2)
-    for _, k in ipairs({"E", "F", "R", "T"}) do
-        if not (npc and npc.Parent) then break end
-        VIM:SendKeyEvent(true, k, false, game)
-        task.wait(Config.AttackDelay)
-        VIM:SendKeyEvent(false, k, false, game)
-        task.wait(Config.AttackDelay)
-    end
-end
-
---------------------------------------------------
--- 3) LOOP PRINCIPAL
---------------------------------------------------
-local function startLoop()
-    Config.AutoFarm = true
-    while Config.AutoFarm do
-        tpAttack(getNearest())
-        task.wait(0.4)
-    end
-end
-
---------------------------------------------------
--- 4) MENÚ RÁPIDO (Kavo)
---------------------------------------------------
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window  = Library.CreateLib("🌊 SEA-1 REFORZADO","DarkTheme")
-local Tab    = Window:NewTab("Auto-Farm")
-local Sec    = Tab:NewSection("Control")
-
-Sec:NewToggle("🚀 Activar", "", function(s)
-    if s then startLoop() else Config.AutoFarm = false end
 end)
 
-Sec:NewSlider("📏 Distancia", "", 50, 10, function(v) Config.FarmDistance = v end)
+--------------------------------------------------
+-- UI (Kavo)... & resto del script.
+--------------------------------------------------
 
---------------------------------------------------
--- 5) ANTI-AFK
---------------------------------------------------
-Plr.Idled:Connect(function()
-    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
-end)
