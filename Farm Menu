@@ -1,180 +1,56 @@
--- REDZ HUB – MULTI-SEA AUTO-FARM
--- ✅ Sea 1 / Sea 2 / Sea 3
--- 🔄 Buscar NPCs automáticamente
--- 🎯 Teletransportarse a ellos
--- ⚔️ Atacar con E, F, R, T
--- 📍 Teleports por islas
--- 🔧 Para El Fam (NO Silver)
+-- SEA-3 ADVANCED  | 2025
+-- Auto-Raid / Elite / Chest
+local Plr = game:GetService("Players").LocalPlayer
+local VIM = game:GetService("VirtualInputManager")
+local WS  = game:GetService("Workspace")
+local RS  = game:GetService("ReplicatedStorage")
+local TS  = game:GetService("TeleportService")
 
-local Players = game:GetService("Players")
-local VirtualInput = game:GetService("VirtualInputManager")
-local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+assert(game.PlaceId == 7449423635, "Este script solo funciona en Sea-3")
 
-local LPlayer = Players.LocalPlayer
-local Character = LPlayer.Character or LPlayer.CharacterAdded:Wait()
-local RootPart = Character:WaitForChild("HumanoidRootPart")
-
--- ✅ DETECCIÓN AUTOMÁTICA DEL SEA
-local SeaPlaces = {
-    [2753915549] = "Sea1",  -- Blox Fruits Sea 1
-    [4442272183] = "Sea2",  -- Blox Fruits Sea 2
-    [7449423635] = "Sea3"   -- Blox Fruits Sea 3
-}
-
-local CurrentSea = SeaPlaces[game.PlaceId] or "Sea1"
-
--- 📁 CARPETAS DE NPCs POR SEA
-local EnemyFolders = {
-    Sea1 = Workspace:WaitForChild("Enemies"),
-    Sea2 = Workspace:WaitForChild("Enemies"),
-    Sea3 = Workspace:WaitForChild("Enemies")
-}
-
-local Enemies = EnemyFolders[CurrentSea] or Workspace:WaitForChild("Enemies")
-
--- ⚙️ CONFIG
-local Config = {
-    AutoFarm = false,
-    FarmDistance = 15,
-    AttackDelay = 0.12,
-    SelectedSea = CurrentSea
-}
-
--- 🔄 BUSCAR NPCs
-function FindNearestEnemy()
-    if not (LPlayer.Character and RootPart) then return nil end
-    local closest, dist = nil, math.huge
-    local myPos = RootPart.Position
-
-    for _, npc in ipairs(Enemies:GetChildren()) do
-        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0
-           and npc:FindFirstChild("HumanoidRootPart") then
-            local d = (myPos - npc.HumanoidRootPart.Position).Magnitude
-            if d < dist then
-                closest, dist = npc, d
-            end
-        end
-    end
-    return closest
-end
-
--- 🎯 TELEPORT
-function TeleportToNPC(npc)
-    if not npc or not npc:FindFirstChild("HumanoidRootPart") then return false end
-    local np = npc.HumanoidRootPart.Position
-    RootPart.CFrame = CFrame.new(np + Vector3.new(math.random(-2,2), Config.FarmDistance, math.random(-2,2)))
-    return true
-end
-
--- ⚔️ ATACAR
-function Attack()
-    local keys = {"E","F","R","T"}
-    for _, k in ipairs(keys) do
-        if not Config.AutoFarm then break end
-        VirtualInput:SendKeyEvent(true,  k, false, game)
-        task.wait(Config.AttackDelay)
-        VirtualInput:SendKeyEvent(false, k, false, game)
-        task.wait(Config.AttackDelay)
+local function doTeleport(cf) Plr.Character.HumanoidRootPart.CFrame = cf end
+local function attack()
+    for _,k in ipairs({"E","F","R","T"}) do
+        VIM:SendKeyEvent(true,k,false,game) task.wait(.1)
+        VIM:SendKeyEvent(false,k,false,game) task.wait(.1)
     end
 end
 
--- 🔁 LOOP AUTO-FARM
-function StartAutoFarm()
-    Config.AutoFarm = true
-    task.spawn(function()
-        while Config.AutoFarm do
-            local npc = FindNearestEnemy()
-            if npc then
-                if TeleportToNPC(npc) then
-                    task.wait(0.2)
-                    Attack()
-                end
-            else
-                task.wait(0.5)
-            end
-            task.wait(0.5)
+-- AUTO-ELITE
+task.spawn(function()
+    while task.wait(1) do
+        local elite = WS:FindFirstChild("Diablo") or WS:FindFirstChild("Deandre") or WS:FindFirstChild("Urban")
+        if elite then
+            doTeleport(elite.HumanoidRootPart.CFrame + Vector3.new(0,20,0))
+            task.wait(.3); attack()
         end
-    end)
-end
-
--- 🧭 TELEPORTS POR ISLAS (SEGÚN SEA)
-local Islands = {
-    Sea1 = {
-        {"Starter Island", CFrame.new(-100, 50, -100)},
-        {"Jungle", CFrame.new(-1250, 70, -250)},
-        {"Pirate Village", CFrame.new(-1150, 90, 3800)},
-        {"Desert", CFrame.new(1000, 70, 4000)},
-        {"Snow Mountain", CFrame.new(1300, 150, -1300)}
-    },
-    Sea2 = {
-        {"Kingdom of Rose", CFrame.new(-391, 73, 1835)},
-        {"Cafe", CFrame.new(-387, 73, 1380)},
-        {"Green Zone", CFrame.new(-2441, 73, -3219)},
-        {"Ice Castle", CFrame.new(-6061, 16, -4904)},
-        {"Forgotten Island", CFrame.new(-3056, 240, -10145)}
-    },
-    Sea3 = {
-        {"Port Town", CFrame.new(-290, 20, 5800)},
-        {"Hydra Island", CFrame.new(5220, 100, 700)},
-        {"Great Tree", CFrame.new(2485, 74, -6788)},
-        {"Floating Turtle", CFrame.new(-13233, 332, -7626)},
-        {"Castle of the Sea", CFrame.new(-12682, 391, -9901)}
-    }
-}
-
--- 🖥️ UI (Kavo)
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("🔥 REDZ HUB – MULTI-SEA", "DarkTheme")
-
--- TAB: AUTO-FARM
-local MainTab = Window:NewTab("⚔️ AUTO-FARM")
-local MainSec = MainTab:NewSection("CONTROLES")
-
-MainSec:NewToggle("🚀 ACTIVAR AUTO-FARM", "Farmea solo", function(v)
-    if v then
-        StartAutoFarm()
-    else
-        Config.AutoFarm = false
     end
 end)
 
-MainSec:NewSlider("📏 DISTANCIA", "Altura del TP", 50, 10, function(v) Config.FarmDistance = v end)
-
--- TAB: TELEPORTS
-local TPTab = Window:NewTab("🧭 TELEPORTS")
-local TPSec = TPTab:NewSection("ISLAS – " .. CurrentSea)
-
-for _, island in ipairs(Islands[CurrentSea]) do
-    TPSec:NewButton("🏝️ " .. island[1], function()
-        if RootPart then
-            RootPart.CFrame = island[2]
+-- AUTO-RAID
+task.spawn(function()
+    while task.wait(5) do
+        local raid = WS:FindFirstChild("rip_indra True Form") or WS:FindFirstChild("Tyrant Skies")
+        if raid then
+            doTeleport(raid.HumanoidRootPart.CFrame + Vector3.new(0,25,0))
+            task.wait(.3); attack()
         end
-    end)
-end
+    end
+end)
 
--- TAB: CAMBIAR SEA (manual)
-local SeaTab = Window:NewTab("🌊 SEA")
-local SeaSec = SeaTab:NewSection("INFO / CAMBIO")
-
-SeaSec:NewLabel("Sea actual: " .. CurrentSea)
-SeaSec:NewDropdown("Seleccionar Sea", {"Sea1", "Sea2", "Sea3"}, CurrentSea, function(sea)
-    Config.SelectedSea = sea
-    -- Recargar carpetas
-    Enemies = EnemyFolders[sea] or Workspace:WaitForChild("Enemies")
+-- AUTO-CHEST
+task.spawn(function()
+    while task.wait(.8) do
+        for _,c in pairs(WS:GetDescendants()) do
+            if c.Name:find("Chest") and c:FindFirstChild("Root") then
+                if (Plr.Character.HumanoidRootPart.Position - c.Root.Position).Magnitude < 2500 then
+                    doTeleport(c.Root.CFrame)
+                    task.wait(.2)
+                end
+            end
+        end
+    end
 end)
 
 -- ANTI-AFK
-local VirtualUser = game:GetService("VirtualUser")
-LPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
-
--- NOTI
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "REDZ HUB",
-    Text = "✅ Multi-Sea activado en " .. CurrentSea,
-    Duration = 5
-})
+Plr.Idled:Connect(function() game:GetService("VirtualUser"):ClickButton2(Vector2.new()) end)
