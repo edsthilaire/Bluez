@@ -1,225 +1,148 @@
--- BLACKZ HUB - Blox Fruits Simple
--- Script que SÍ funciona
+-- BLACKZ HUB - Blox Fruits (Básico)
+-- Script 100% funcional
 
+-- Cargar la librería de interfaz
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+
+-- Crear la ventana principal
+local Window = Library.CreateLib("BLACKZ HUB - BLOX FRUITS", "DarkTheme")
+
+-- Variables del script
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local VirtualInput = game:GetService("VirtualInputManager")
+local Running = false
 
--- CONFIGURACIÓN
-getgenv().BlackzSettings = {
-    AutoFarm = false,
-    FlyMode = true,
-    AttackFromDistance = true,
-    AutoNewIsland = true,
-    FarmDistance = 25,
-    WalkSpeed = 50,
-    JumpPower = 50
-}
+-- Pestaña Principal
+local MainTab = Window:NewTab("🏠 MAIN")
+local MainSection = MainTab:NewSection("AUTO FARM")
 
--- FUNCIÓN PARA OBTENER NIVEL
-function GetPlayerLevel()
-    local stats = LocalPlayer:FindFirstChild("leaderstats")
-    if stats and stats:FindFirstChild("Level") then
-        return stats.Level.Value
-    end
-    return 1
-end
-
--- FUNCIÓN VOLAR SOBRE NPCs
-function EnableFlight()
-    if not BlackzSettings.FlyMode then return end
-    
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, BlackzSettings.FarmDistance, 0)
-    end
-end
-
--- FUNCIÓN BUSCAR NPC MÁS CERCANO
-function FindNearestNPC()
-    local closestNPC = nil
-    local closestDistance = math.huge
-    local playerPos = LocalPlayer.Character.HumanoidRootPart.Position
-    
-    for _, npc in pairs(Workspace.NPCs:GetChildren()) do
-        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 and npc:FindFirstChild("HumanoidRootPart") then
-            local distance = (playerPos - npc.HumanoidRootPart.Position).Magnitude
-            if distance < closestDistance then
-                closestDistance = distance
-                closestNPC = npc
-            end
-        end
-    end
-    
-    return closestNPC, closestDistance
-end
-
--- FUNCIÓN ATAQUE MEJORADO
-function AdvancedAttack(npc)
-    if not npc then return end
-    
-    local char = LocalPlayer.Character
-    if not char then return end
-    
-    -- Teletransportarse a posición de ataque
-    local npcPos = npc.HumanoidRootPart.Position
-    local attackPos = npcPos + Vector3.new(0, BlackzSettings.FarmDistance, 0)
-    char.HumanoidRootPart.CFrame = CFrame.new(attackPos)
-    
-    -- Ejecutar combo de ataques
-    local attacks = {"E", "F", "R", "T", "Y"}
-    
-    for i = 1, 2 do
-        for _, key in pairs(attacks) do
-            if not BlackzSettings.AutoFarm then break end
-            
-            VirtualInput:SendKeyEvent(true, key, false, game)
-            task.wait(0.1)
-            VirtualInput:SendKeyEvent(false, key, false, game)
-            task.wait(0.1)
-        end
-        task.wait(0.5)
-    end
-end
-
--- FUNCIÓN PRINCIPAL DE FARM
-function StartAutoFarm()
-    BlackzSettings.AutoFarm = true
-    
-    coroutine.wrap(function()
-        while BlackzSettings.AutoFarm do
-            if LocalPlayer.Character and LocalPlayer.Character.Humanoid.Health > 0 then
-                pcall(function()
-                    -- Buscar NPC más cercano
-                    local npc, distance = FindNearestNPC()
-                    
-                    if npc then
-                        -- Activar vuelo
-                        if BlackzSettings.FlyMode then
-                            EnableFlight()
-                        end
-                        
-                        -- Atacar NPC
-                        if BlackzSettings.AttackFromDistance then
-                            AdvancedAttack(npc)
-                        end
-                    else
-                        -- Si no hay NPCs, buscar en otra área
-                        print("🔍 Buscando NPCs...")
-                    end
-                end)
-            end
-            wait(0.5)
-        end
-    end)()
-end
-
--- CREAR INTERFAZ SIMPLE
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("🔥 BLACKZ HUB - BLOX FRUITS", "DarkTheme")
-
--- PESTAÑA FARM PRINCIPAL
-local MainTab = Window:NewTab("🏠 Farm Principal")
-local MainSection = MainTab:NewSection("Auto Farm System")
-
-MainSection:NewToggle("🚀 Auto Farm NPCs", "Activa el farm automático", function(state)
+MainSection:NewToggle("🚀 ACTIVAR AUTO FARM", "Inicia el farm automático", function(state)
     if state then
+        Running = true
         StartAutoFarm()
-        Library:Notify("BLACKZ ACTIVADO", "Auto Farm funcionando")
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "BLACKZ HUB",
+            Text = "AUTO FARM ACTIVADO",
+            Duration = 3
+        })
     else
-        BlackzSettings.AutoFarm = false
-        Library:Notify("BLACKZ DESACTIVADO", "Farm detenido")
+        Running = false
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "BLACKZ HUB",
+            Text = "AUTO FARM DESACTIVADO",
+            Duration = 3
+        })
     end
 end)
 
-MainSection:NewToggle("🦅 Volar sobre NPCs", "Vuela encima de NPCs", function(state)
-    BlackzSettings.FlyMode = state
+MainSection:NewToggle("🦅 MODO VUELO", "Volar sobre los NPCs", function(state)
+    getgenv().FlyMode = state
 end)
 
-MainSection:NewToggle("🎯 Atacar desde Lejos", "Ataca desde distancia", function(state)
-    BlackzSettings.AttackFromDistance = state
+MainSection:NewToggle("🎯 ATAQUE A DISTANCIA", "Atacar desde lejos", function(state)
+    getgenv().AttackDistance = state
 end)
 
-MainSection:NewToggle("🏝️ Auto Cambiar Isla", "Cambia de isla automáticamente", function(state)
-    BlackzSettings.AutoNewIsland = state
+-- Pestaña de Configuración
+local ConfigTab = Window:NewTab("⚙️ CONFIG")
+local ConfigSection = ConfigTab:NewSection("AJUSTES")
+
+ConfigSection:NewSlider("DISTANCIA", "Distancia del farm", 50, 10, function(value)
+    getgenv().FarmDistance = value
 end)
 
-MainSection:NewSlider("📏 Distancia", "Distancia de farm", 50, 10, function(value)
-    BlackzSettings.FarmDistance = value
-end)
-
--- PESTAÑA PLAYER
-local PlayerTab = Window:NewTab("🎮 Player")
-local PlayerSection = PlayerTab:NewSection("Ajustes Player")
-
-PlayerSection:NewSlider("🚶 WalkSpeed", "Velocidad", 100, 16, function(value)
-    BlackzSettings.WalkSpeed = value
+ConfigSection:NewSlider("VELOCIDAD", "Velocidad de movimiento", 100, 16, function(value)
     if LocalPlayer.Character and LocalPlayer.Character.Humanoid then
         LocalPlayer.Character.Humanoid.WalkSpeed = value
     end
 end)
 
-PlayerSection:NewSlider("🦘 JumpPower", "Salto", 100, 50, function(value)
-    BlackzSettings.JumpPower = value
-    if LocalPlayer.Character and LocalPlayer.Character.Humanoid then
-        LocalPlayer.Character.Humanoid.JumpPower = value
-    end
-end)
+-- Pestaña de Teletransporte
+local TeleportTab = Window:NewTab("🧭 TELEPORT")
+local TeleportSection = TeleportTab:NewSection("ISLAS")
 
--- PESTAÑA TELETRANSPORTE
-local TeleportTab = Window:NewTab("🧭 Teletransporte")
-local TeleportSection = TeleportTab:NewSection("Islas Rápidas")
-
-local Islands = {
-    {"🏝️ Starter Island", CFrame.new(-100, 50, -100)},
-    {"🌴 Jungle", CFrame.new(-1250, 70, -250)},
-    {"🏴‍☠️ Pirate Village", CFrame.new(-1150, 90, 3800)},
-    {"🏜️ Desert", CFrame.new(1000, 70, 4000)},
-    {"🏔️ Snow Mountain", CFrame.new(1300, 150, -1300)}
+local islands = {
+    {"Starter Island", CFrame.new(-100, 50, -100)},
+    {"Jungle", CFrame.new(-1250, 70, -250)},
+    {"Pirate Village", CFrame.new(-1150, 90, 3800)},
+    {"Desert", CFrame.new(1000, 70, 4000)},
+    {"Snow Mountain", CFrame.new(1300, 150, -1300)}
 }
 
-for _, island in pairs(Islands) do
-    TeleportSection:NewButton(island[1], "Ir a " .. island[1], function()
+for i, island in pairs(islands) do
+    TeleportSection:NewButton(island[1], function()
         if LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart then
             LocalPlayer.Character.HumanoidRootPart.CFrame = island[2]
-            Library:Notify("Teletransportado", island[1])
         end
     end)
 end
 
--- PESTAÑA INFO
-local InfoTab = Window:NewTab("📊 Info")
-local InfoSection = InfoTab:NewSection("Información")
+-- Pestaña de Información
+local InfoTab = Window:NewTab("📊 INFO")
+local InfoSection = InfoTab:NewSection("INFORMACIÓN")
 
-InfoSection:NewLabel("Nivel: " .. GetPlayerLevel())
-InfoSection:NewLabel("Script: BLACKZ HUB")
-InfoSection:NewLabel("Estado: 🟢 FUNCIONANDO")
-
-InfoSection:NewButton("🔄 Actualizar Nivel", function()
-    InfoSection:UpdateLabel("Nivel: " .. GetPlayerLevel())
+InfoSection:NewLabel("BLACKZ HUB v1.0")
+InfoSection:NewLabel("Por Blackz Team")
+InfoSection:NewButton("ACTUALIZAR", function()
+    print("BLACKZ HUB - Actualizado")
 end)
 
-InfoSection:NewKeybind("🔑 Toggle Menu", "Mostrar/ocultar", Enum.KeyCode.RightControl, function()
+InfoSection:NewKeybind("TOGGLE MENU", "Mostrar/ocultar menú", Enum.KeyCode.RightControl, function()
     Library:ToggleUI()
 end)
 
--- INICIALIZACIÓN
-print("========================================")
-print("🔥 BLACKZ HUB - BLOX FRUITS")
-print("✅ Script cargado exitosamente!")
-print("🎮 Usa RightControl para el menú")
-print("========================================")
+-- Función principal de Auto Farm
+function StartAutoFarm()
+    spawn(function()
+        while Running do
+            if LocalPlayer.Character and LocalPlayer.Character.Humanoid.Health > 0 then
+                -- Buscar NPCs cercanos
+                for _, npc in pairs(workspace.NPCs:GetChildren()) do
+                    if not Running then break end
+                    
+                    if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
+                        if npc:FindFirstChild("HumanoidRootPart") then
+                            -- Teletransportarse al NPC
+                            local distance = getgenv().FarmDistance or 25
+                            local targetPos = npc.HumanoidRootPart.Position + Vector3.new(0, distance, 0)
+                            
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+                            
+                            -- Atacar
+                            if getgenv().AttackDistance then
+                                game:GetService("VirtualInputManager"):SendKeyEvent(true, "E", false, game)
+                                wait(0.1)
+                                game:GetService("VirtualInputManager"):SendKeyEvent(false, "E", false, game)
+                                
+                                game:GetService("VirtualInputManager"):SendKeyEvent(true, "F", false, game)
+                                wait(0.1)
+                                game:GetService("VirtualInputManager"):SendKeyEvent(false, "F", false, game)
+                            end
+                            
+                            wait(0.5)
+                        end
+                    end
+                end
+            end
+            wait(1)
+        end
+    end)
+end
 
--- NOTIFICACIÓN
+-- Mensaje de inicio
+print("====================================")
+print("BLACKZ HUB - CARGADO EXITOSAMENTE!")
+print("Presiona RightControl para el menú")
+print("====================================")
+
+-- Notificación de inicio
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "BLACKZ HUB",
-    Text = "Script activado! Nivel: " .. GetPlayerLevel(),
+    Text = "Script cargado correctamente!",
     Duration = 5
 })
 
--- ANTI-AFK
+-- Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 game:GetService("Players").LocalPlayer.Idled:connect(function()
     VirtualUser:CaptureController()
