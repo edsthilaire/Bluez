@@ -1,0 +1,189 @@
+-- Blox Fruits Script Silver Executor
+-- Módulo Farm Automático
+
+local BloxFruitsFarm = {}
+
+-- Configuración inicial
+BloxFruitsFarm.Settings = {
+    AutoFarm = false,
+    AutoMelee = false,
+    AutoSword = false,
+    AutoDefense = false,
+    AutoFruit = false,
+    AutoAbility = false,
+    AutoBoss = false,
+    AutoSeaBeast = false,
+    AutoQuest = false,
+    SelectedWeapon = "Melee",
+    FarmDistance = 25,
+    FarmSpeed = 1
+}
+
+-- Variables locales
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Función para encontrar el NPC más cercano
+function BloxFruitsFarm.FindNearestNPC()
+    local closestNPC = nil
+    local closestDistance = math.huge
+    
+    for _, npc in pairs(Workspace.NPCs:GetChildren()) do
+        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
+            if distance < closestDistance then
+                closestDistance = distance
+                closestNPC = npc
+            end
+        end
+    end
+    
+    return closestNPC, closestDistance
+end
+
+-- Función para teletransportarse al NPC
+function BloxFruitsFarm.TeleportToNPC(npc)
+    if npc and npc:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = npc.HumanoidRootPart.CFrame + Vector3.new(0, BloxFruitsFarm.Settings.FarmDistance, 0)
+    end
+end
+
+-- Función de ataque automático
+function BloxFruitsFarm.AutoAttack()
+    if not LocalPlayer.Character then return end
+    
+    local npc, distance = BloxFruitsFarm.FindNearestNPC()
+    
+    if npc and distance < 50 then
+        BloxFruitsFarm.TeleportToNPC(npc)
+        
+        -- Simular clicks de ataque
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+        
+        -- Usar habilidades según la configuración
+        if BloxFruitsFarm.Settings.AutoAbility then
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+            
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.T, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
+            
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+        end
+    end
+end
+
+-- Función principal de farm
+function BloxFruitsFarm.StartFarm()
+    BloxFruitsFarm.Settings.AutoFarm = true
+    
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if not BloxFruitsFarm.Settings.AutoFarm then
+            connection:Disconnect()
+            return
+        end
+        
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health > 0 then
+            pcall(function()
+                BloxFruitsFarm.AutoAttack()
+            end)
+        end
+        
+        task.wait(BloxFruitsFarm.Settings.FarmSpeed)
+    end)
+end
+
+-- Función para detener el farm
+function BloxFruitsFarm.StopFarm()
+    BloxFruitsFarm.Settings.AutoFarm = false
+end
+
+-- Función de farm de bosses
+function BloxFruitsFarm.StartBossFarm()
+    BloxFruitsFarm.Settings.AutoBoss = true
+    
+    local bossConnection
+    bossConnection = RunService.Heartbeat:Connect(function()
+        if not BloxFruitsFarm.Settings.AutoBoss then
+            bossConnection:Disconnect()
+            return
+        end
+        
+        -- Lógica específica para bosses
+        for _, boss in pairs(Workspace:GetChildren()) do
+            if string.find(boss.Name:lower(), "boss") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+                BloxFruitsFarm.TeleportToNPC(boss)
+                BloxFruitsFarm.AutoAttack()
+                break
+            end
+        end
+        
+        task.wait(1)
+    end)
+end
+
+-- Función para recolectar frutas
+function BloxFruitsFarm.CollectFruits()
+    BloxFruitsFarm.Settings.AutoFruit = true
+    
+    local fruitConnection
+    fruitConnection = RunService.Heartbeat:Connect(function()
+        if not BloxFruitsFarm.Settings.AutoFruit then
+            fruitConnection:Disconnect()
+            return
+        end
+        
+        for _, fruit in pairs(Workspace:GetChildren()) do
+            if fruit:FindFirstChild("Handle") and string.find(fruit.Name:lower(), "fruit") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = fruit.Handle.CFrame
+                task.wait(0.5)
+            end
+        end
+        
+        task.wait(2)
+    end)
+end
+
+-- Función de auto-quest
+function BloxFruitsFarm.AutoQuest()
+    BloxFruitsFarm.Settings.AutoQuest = true
+    
+    local questConnection
+    questConnection = RunService.Heartbeat:Connect(function()
+        if not BloxFruitsFarm.Settings.AutoQuest then
+            questConnection:Disconnect()
+            return
+        end
+        
+        -- Lógica para completar quests automáticamente
+        -- Esto puede variar según la ubicación y nivel del jugador
+        
+        task.wait(5)
+    end)
+end
+
+-- Función para verificar si el script está funcionando
+function BloxFruitsFarm.GetStatus()
+    return {
+        AutoFarm = BloxFruitsFarm.Settings.AutoFarm,
+        AutoBoss = BloxFruitsFarm.Settings.AutoBoss,
+        AutoFruit = BloxFruitsFarm.Settings.AutoFruit,
+        AutoQuest = BloxFruitsFarm.Settings.AutoQuest
+    }
+end
+
+return BloxFruitsFarm
