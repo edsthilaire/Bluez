@@ -1,47 +1,47 @@
--- SCRIPT 5: CONFIGURACIÓN AVANZADA Y PROTECCIONES
+-- SEA-1 + UI + TELEPORTS 2025 – El Fam
+local Plr = game:GetService("Players").LocalPlayer
+local VIM = game:GetService("VirtualInputManager")
+local WS  = game:GetService("Workspace")
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Win = Library.CreateLib("🔥 SEA-1 HUB","DarkTheme")
 
--- Anti-AFK mejorado
-local VirtualUser = game:GetService("VirtualUser")
-game:GetService("Players").LocalPlayer.Idled:connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
+local FarmTab = Win:NewTab("⚔️ Farm")
+local FarmSec = FarmTab:NewSection("Auto-Farm")
+getgenv().Farm = false
 
--- Protección contra detección
-function SafeTeleport(cframe)
-    pcall(function()
-        LocalPlayer.Character.HumanoidRootPart.CFrame = cframe
-    end)
-end
-
--- Función segura para ataques
-function SafeAttack()
-    pcall(function()
-        local attacks = {"E", "F", "R", "T"}
-        for _, key in pairs(attacks) do
-            VirtualInput:SendKeyEvent(true, key, false, game)
-            wait(0.1)
-            VirtualInput:SendKeyEvent(false, key, false, game)
-            wait(0.1)
+FarmSec:NewToggle("Activar", "", function(s)
+    getgenv().Farm = s
+    while getgenv().Farm do
+        local c, d = nil, math.huge
+        for _,v in pairs(WS.Enemies:GetChildren()) do
+            if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                local dist = (Plr.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                if dist < d then c, d = v, dist end
+            end
         end
+        if c then
+            Plr.Character.HumanoidRootPart.CFrame = c.HumanoidRootPart.CFrame + Vector3.new(0,16,0)
+            task.wait(.25)
+            for _,k in ipairs({"E","F","R","T"}) do
+                VIM:SendKeyEvent(true,k,false,game) task.wait(.12)
+                VIM:SendKeyEvent(false,k,false,game) task.wait(.12)
+            end
+        end
+        task.wait(.35)
+    end
+end)
+
+local TPTab = Win:NewTab("🧭 TPs")
+local TPSec = TPTab:NewSection("Islas Sea-1")
+local islands = {
+    {"Starter", CFrame.new(-100,50,-100)},
+    {"Jungle", CFrame.new(-1250,70,-250)},
+    {"Pirate Village", CFrame.new(-1150,90,3800)},
+    {"Desert", CFrame.new(1000,70,4000)},
+    {"Snow", CFrame.new(1300,150,-1300)}
+}
+for _,v in ipairs(islands) do
+    TPSec:NewButton(v[1], "", function()
+        Plr.Character.HumanoidRootPart.CFrame = v[2]
     end)
 end
-
--- Sistema de logs
-function Log(message)
-    print("[" .. os.date("%X") .. "] " .. message)
-end
-
--- Verificador de seguridad
-function IsSafe()
-    if not LocalPlayer.Character then return false end
-    if not LocalPlayer.Character:FindFirstChild("Humanoid") then return false end
-    if LocalPlayer.Character.Humanoid.Health <= 0 then return false end
-    return true
-end
-
--- Inicialización segura
-pcall(function()
-    Log("Script iniciado correctamente")
-    Log("Nivel del jugador: " .. GetPlayerLevel())
-end)
