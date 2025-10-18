@@ -1,40 +1,83 @@
--- Blox Fruits Script Silver Executor
--- Módulo Farm Automático
+-- Blox Fruits Farm Avanzado - ED
+-- Farm automático completo con teleportación entre islas
 
-local BloxFruitsFarm = {}
-
--- Configuración inicial
-BloxFruitsFarm.Settings = {
-    AutoFarm = false,
-    AutoMelee = false,
-    AutoSword = false,
-    AutoDefense = false,
-    AutoFruit = false,
-    AutoAbility = false,
-    AutoBoss = false,
-    AutoSeaBeast = false,
-    AutoQuest = false,
-    SelectedWeapon = "Melee",
-    FarmDistance = 25,
-    FarmSpeed = 1
-}
-
--- Variables locales
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualInput = game:GetService("VirtualInputManager")
+local TS = game:GetService("TweenService")
 
--- Función para encontrar el NPC más cercano
-function BloxFruitsFarm.FindNearestNPC()
+-- Configuración
+getgenv().Settings = {
+    AutoFarm = false,
+    AutoQuest = false,
+    AutoNewIsland = false,
+    AttackFromDistance = true,
+    FlyAboveNPCs = true,
+    FarmDistance = 30,
+    AttackRange = 50,
+    LevelRequirement = 0
+}
+
+-- Lista de islas y niveles requeridos
+local Islands = {
+    {Name = "Jungle", Level = 15, Position = Vector3.new(-1250, 70, -250)},
+    {Name = "Pirate Village", Level = 30, Position = Vector3.new(-1150, 90, 3800)},
+    {Name = "Desert", Level = 60, Position = Vector3.new(1000, 70, 4000)},
+    {Name = "Snow Mountain", Level = 90, Position = Vector3.new(1300, 150, -1300)},
+    {Name = "Marine Fortress", Level = 120, Position = Vector3.new(-4500, 200, 4000)},
+    {Name = "Sky Island", Level = 150, Position = Vector3.new(-5000, 500, -2500)},
+    {Name = "Prison", Level = 190, Position = Vector3.new(5000, 100, 500)},
+    {Name = "Magma Village", Level = 220, Position = Vector3.new(-5500, 100, -4500)},
+    {Name = "Underwater City", Level = 250, Position = Vector3.new(3000, -200, 3000)},
+    {Name = "Fountain City", Level = 275, Position = Vector3.new(5000, 150, -5000)}
+}
+
+-- Función para volar sobre NPCs
+function EnableFlight()
+    if not Settings.FlyAboveNPCs then return end
+    
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        -- Activar vuelo
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Velocity = Vector3.new(0, 25, 0)
+        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+        bodyVelocity.Parent = character.HumanoidRootPart
+        
+        -- Mantener altura fija
+        coroutine.wrap(function()
+            while Settings.FlyAboveNPCs and Settings.AutoFarm do
+                if character and character.HumanoidRootPart then
+                    character.HumanoidRootPart.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                end
+                wait(0.1)
+            end
+            if bodyVelocity then bodyVelocity:Destroy() end
+        end)()
+    end
+end
+
+-- Función para obtener nivel del jugador
+function GetPlayerLevel()
+    local stats = LocalPlayer:FindFirstChild("leaderstats")
+    if stats and stats:FindFirstChild("Level") then
+        return stats.Level.Value
+    end
+    return 0
+end
+
+-- Función para encontrar NPC más cercano
+function FindNearestNPC()
     local closestNPC = nil
     local closestDistance = math.huge
+    local playerPos = LocalPlayer.Character.HumanoidRootPart.Position
     
     for _, npc in pairs(Workspace.NPCs:GetChildren()) do
-        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
-            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
-            if distance < closestDistance then
+        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 and npc:FindFirstChild("HumanoidRootPart") then
+            local distance = (playerPos - npc.HumanoidRootPart.Position).Magnitude
+            if distance < closestDistance and distance < Settings.AttackRange then
                 closestDistance = distance
                 closestNPC = npc
             end
@@ -44,146 +87,196 @@ function BloxFruitsFarm.FindNearestNPC()
     return closestNPC, closestDistance
 end
 
--- Función para teletransportarse al NPC
-function BloxFruitsFarm.TeleportToNPC(npc)
-    if npc and npc:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.CFrame = npc.HumanoidRootPart.CFrame + Vector3.new(0, BloxFruitsFarm.Settings.FarmDistance, 0)
+-- Función para atacar desde lejos
+function AttackFromDistance(npc)
+    if not npc then return end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    -- Posicionarse a distancia segura
+    local npcPos = npc.HumanoidRootPart.Position
+    local attackPos = npcPos + Vector3.new(0, Settings.FarmDistance, 0)
+    
+    -- Teletransportarse a posición de ataque
+    character.HumanoidRootPart.CFrame = CFrame.new(attackPos)
+    
+    -- Realizar ataques
+    VirtualInput:SendKeyEvent(true, "E", false, game)
+    wait(0.1)
+    VirtualInput:SendKeyEvent(false, "E", false, game)
+    
+    VirtualInput:SendKeyEvent(true, "F", false, game)
+    wait(0.1)
+    VirtualInput:SendKeyEvent(false, "F", false, game)
+    
+    VirtualInput:SendKeyEvent(true, "R", false, game)
+    wait(0.1)
+    VirtualInput:SendKeyEvent(false, "R", false, game)
+    
+    VirtualInput:SendKeyEvent(true, "T", false, game)
+    wait(0.1)
+    VirtualInput:SendKeyEvent(false, "T", false, game)
+end
+
+-- Función para aceptar misiones automáticamente
+function AcceptQuests()
+    if not Settings.AutoQuest then return end
+    
+    -- Buscar NPCs de quest
+    for _, npc in pairs(Workspace.NPCs:GetChildren()) do
+        if npc:FindFirstChild("Head") and npc.Head:FindFirstChild("Dialog") then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
+            if distance < 20 then
+                -- Interactuar con NPC para aceptar quest
+                fireproximityprompt(npc.Head.Dialog)
+                wait(1)
+            end
+        end
     end
 end
 
--- Función de ataque automático
-function BloxFruitsFarm.AutoAttack()
-    if not LocalPlayer.Character then return end
+-- Función para verificar si puede ir a nueva isla
+function CheckNewIsland()
+    local currentLevel = GetPlayerLevel()
     
-    local npc, distance = BloxFruitsFarm.FindNearestNPC()
-    
-    if npc and distance < 50 then
-        BloxFruitsFarm.TeleportToNPC(npc)
-        
-        -- Simular clicks de ataque
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(0.1)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-        
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-        task.wait(0.1)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
-        
-        -- Usar habilidades según la configuración
-        if BloxFruitsFarm.Settings.AutoAbility then
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
-            task.wait(0.1)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
-            
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.T, false, game)
-            task.wait(0.1)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
-            
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
-            task.wait(0.1)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+    for _, island in pairs(Islands) do
+        if currentLevel >= island.Level and currentLevel < island.Level + 50 then
+            return island
         end
     end
+    return nil
+end
+
+-- Función para teletransportarse a nueva isla
+function GoToNewIsland(island)
+    if not island then return end
+    
+    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(island.Position)
+    print("✅ Teletransportado a: " .. island.Name)
+    wait(3)
 end
 
 -- Función principal de farm
-function BloxFruitsFarm.StartFarm()
-    BloxFruitsFarm.Settings.AutoFarm = true
+function StartAutoFarm()
+    getgenv().Settings.AutoFarm = true
     
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        if not BloxFruitsFarm.Settings.AutoFarm then
-            connection:Disconnect()
-            return
-        end
-        
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health > 0 then
-            pcall(function()
-                BloxFruitsFarm.AutoAttack()
-            end)
-        end
-        
-        task.wait(BloxFruitsFarm.Settings.FarmSpeed)
-    end)
-end
-
--- Función para detener el farm
-function BloxFruitsFarm.StopFarm()
-    BloxFruitsFarm.Settings.AutoFarm = false
-end
-
--- Función de farm de bosses
-function BloxFruitsFarm.StartBossFarm()
-    BloxFruitsFarm.Settings.AutoBoss = true
-    
-    local bossConnection
-    bossConnection = RunService.Heartbeat:Connect(function()
-        if not BloxFruitsFarm.Settings.AutoBoss then
-            bossConnection:Disconnect()
-            return
-        end
-        
-        -- Lógica específica para bosses
-        for _, boss in pairs(Workspace:GetChildren()) do
-            if string.find(boss.Name:lower(), "boss") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
-                BloxFruitsFarm.TeleportToNPC(boss)
-                BloxFruitsFarm.AutoAttack()
-                break
+    coroutine.wrap(function()
+        while getgenv().Settings.AutoFarm do
+            if LocalPlayer.Character and LocalPlayer.Character.Humanoid.Health > 0 then
+                pcall(function()
+                    -- Activar vuelo
+                    if Settings.FlyAboveNPCs then
+                        EnableFlight()
+                    end
+                    
+                    -- Buscar NPC más cercano
+                    local npc, distance = FindNearestNPC()
+                    
+                    if npc then
+                        -- Atacar desde distancia
+                        AttackFromDistance(npc)
+                    else
+                        -- Buscar nueva isla si no hay NPCs
+                        if Settings.AutoNewIsland then
+                            local newIsland = CheckNewIsland()
+                            if newIsland then
+                                GoToNewIsland(newIsland)
+                            end
+                        end
+                    end
+                    
+                    -- Aceptar misiones automáticamente
+                    if Settings.AutoQuest then
+                        AcceptQuests()
+                    end
+                    
+                end)
             end
+            wait(0.5)
         end
-        
-        task.wait(1)
+    end)()
+end
+
+-- Crear interfaz gráfica
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Blox Fruits Farm PRO - ED", "DarkTheme")
+
+-- Pestaña Farm Principal
+local MainTab = Window:NewTab("Farm Principal")
+local MainSection = MainTab:NewSection("Configuración Auto Farm")
+
+MainSection:NewToggle("Auto Farm NPCs", "Farm automático de NPCs", function(state)
+    getgenv().Settings.AutoFarm = state
+    if state then
+        StartAutoFarm()
+    end
+end)
+
+MainSection:NewToggle("Volar sobre NPCs", "Volar encima de NPCs para evitar daño", function(state)
+    getgenv().Settings.FlyAboveNPCs = state
+end)
+
+MainSection:NewToggle("Atacar desde Lejos", "Atacar NPCs desde distancia segura", function(state)
+    getgenv().Settings.AttackFromDistance = state
+end)
+
+MainSection:NewToggle("Auto Aceptar Misiones", "Aceptar misiones automáticamente", function(state)
+    getgenv().Settings.AutoQuest = state
+end)
+
+MainSection:NewToggle("Cambio Auto de Isla", "Cambiar de isla al subir de nivel", function(state)
+    getgenv().Settings.AutoNewIsland = state
+end)
+
+MainSection:NewSlider("Distancia de Farm", "Distancia desde NPCs", 100, 10, function(value)
+    getgenv().Settings.FarmDistance = value
+end)
+
+MainSection:NewSlider("Rango de Ataque", "Distancia máxima de ataque", 100, 10, function(value)
+    getgenv().Settings.AttackRange = value
+end)
+
+-- Pestaña de Islas
+local IslandsTab = Window:NewTab("Teleport Islas")
+local IslandsSection = IslandsTab:NewSection("Lista de Islas")
+
+for _, island in pairs(Islands) do
+    IslandsSection:NewButton("Ir a " .. island.Name .. " (Nvl " .. island.Level .. ")", function()
+        GoToNewIsland(island)
     end)
 end
 
--- Función para recolectar frutas
-function BloxFruitsFarm.CollectFruits()
-    BloxFruitsFarm.Settings.AutoFruit = true
-    
-    local fruitConnection
-    fruitConnection = RunService.Heartbeat:Connect(function()
-        if not BloxFruitsFarm.Settings.AutoFruit then
-            fruitConnection:Disconnect()
-            return
-        end
-        
-        for _, fruit in pairs(Workspace:GetChildren()) do
-            if fruit:FindFirstChild("Handle") and string.find(fruit.Name:lower(), "fruit") then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = fruit.Handle.CFrame
-                task.wait(0.5)
-            end
-        end
-        
-        task.wait(2)
-    end)
-end
+-- Pestaña de Estadísticas
+local StatsTab = Window:NewTab("Estadísticas")
+local StatsSection = StatsTab:NewSection("Info del Jugador")
 
--- Función de auto-quest
-function BloxFruitsFarm.AutoQuest()
-    BloxFruitsFarm.Settings.AutoQuest = true
-    
-    local questConnection
-    questConnection = RunService.Heartbeat:Connect(function()
-        if not BloxFruitsFarm.Settings.AutoQuest then
-            questConnection:Disconnect()
-            return
-        end
-        
-        -- Lógica para completar quests automáticamente
-        -- Esto puede variar según la ubicación y nivel del jugador
-        
-        task.wait(5)
-    end)
-end
+StatsSection:NewLabel("Nivel actual: " .. GetPlayerLevel())
 
--- Función para verificar si el script está funcionando
-function BloxFruitsFarm.GetStatus()
-    return {
-        AutoFarm = BloxFruitsFarm.Settings.AutoFarm,
-        AutoBoss = BloxFruitsFarm.Settings.AutoBoss,
-        AutoFruit = BloxFruitsFarm.Settings.AutoFruit,
-        AutoQuest = BloxFruitsFarm.Settings.AutoQuest
-    }
-end
+StatsSection:NewButton("Actualizar Nivel", function()
+    StatsSection:UpdateLabel("Nivel actual: " .. GetPlayerLevel())
+end)
 
-return BloxFruitsFarm
+-- Pestaña Misc
+local MiscTab = Window:NewTab("Misceláneo")
+local MiscSection = MiscTab:NewSection("Utilidades")
+
+MiscSection:NewKeybind("Toggle Menu", "Mostrar/ocultar menú", Enum.KeyCode.RightControl, function()
+    Library:ToggleUI()
+end)
+
+MiscSection:NewButton("Reiniciar Personaje", function()
+    LocalPlayer.Character:BreakJoints()
+end)
+
+-- Inicializar
+print("✅ Blox Fruits Farm PRO cargado!")
+print("📊 Nivel actual: " .. GetPlayerLevel())
+print("🎮 Presiona RightControl para toggle menú")
+
+-- Notificación
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "Blox Fruits Farm PRO",
+    Text = "Script cargado exitosamente!",
+    Duration = 5
+})
