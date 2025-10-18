@@ -1,94 +1,67 @@
--- ⚡ BLACKZ QUEST NPC FARM MASTER
--- Farmeo INTELIGENTE con NPCs de quests + Sistema de clics
+-- ⚡ BLACKZ HUB - AUTO FARM SIMPLIFICADO
+-- Basado en redz Hub pero más simple y funcional
 
 local Players = game:GetService("Players")
-local VIM = game:GetService("VirtualInputManager")
-local WS = game:GetService("Workspace")
-local Plr = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local VirtualInput = game:GetService("VirtualInputManager")
 
-repeat task.wait() until Plr.Character
-local Root = Plr.Character:WaitForChild("HumanoidRootPart")
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Root = Character:WaitForChild("HumanoidRootPart")
 
--- DATA DE NPCs DE QUESTS (la que proporcionaste)
-local QuestNPCs = {
-    ["BuggyQuest1"] = "Pirate Adventurer",
-    ["JungleQuest"] = "Adventurer",
-    ["DesertQuest"] = "Desert Adventurer",
-    ["SnowQuest"] = "Villager",
-    ["MarineQuest2"] = "Marine",
-    ["MarineQuest"] = "Marine Leader",
-    ["BanditQuest1"] = "Bandit Quest Giver",
-    ["PrisonerQuest"] = "Jail Keeper",
-    ["FishmanQuest"] = "King Neptune",
-    ["SkyQuest"] = "Sky Adventurer",
-    ["MagmaQuest"] = "The Mayor",
-    ["ImpelQuest"] = "Head Jailer",
-    ["FountainQuest"] = "Freezeburg Quest Giver",
-    ["ColosseumQuest"] = "Colosseum Quest Giver"
-}
-
-local Config = {
+-- CONFIGURACIÓN SIMPLE
+local Settings = {
     AutoFarm = true,
-    FarmDistance = 20,
-    ClickSpeed = 0.03
+    FarmDistance = 25,
+    BringDistance = 50,
+    SelectedTool = "Combat",
+    SmoothMode = false
 }
 
---------------------------------------------------
--- SISTEMA DE DETECCIÓN DE NIVEL Y QUESTS
---------------------------------------------------
-function GetPlayerLevel()
-    local stats = Plr:FindFirstChild("leaderstats")
-    if stats and stats:FindFirstChild("Level") then
-        return stats.Level.Value
-    end
-    return 1
+-- FUNCIONES BÁSICAS
+function IsAlive(char)
+    if not char then return false end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.Health > 0
 end
 
-function GetRecommendedQuestNPC()
-    local playerLevel = GetPlayerLevel()
+function FindNearestNPC()
+    if not IsAlive(Character) then return nil end
     
-    -- Asignar NPCs según nivel (simplificado)
-    if playerLevel < 15 then
-        return "BanditQuest1", "Bandit Quest Giver"
-    elseif playerLevel < 30 then
-        return "JungleQuest", "Adventurer"
-    elseif playerLevel < 60 then
-        return "BuggyQuest1", "Pirate Adventurer"
-    elseif playerLevel < 90 then
-        return "DesertQuest", "Desert Adventurer"
-    elseif playerLevel < 120 then
-        return "SnowQuest", "Villager"
-    elseif playerLevel < 150 then
-        return "MarineQuest2", "Marine"
-    elseif playerLevel < 200 then
-        return "PrisonerQuest", "Jail Keeper"
-    elseif playerLevel < 300 then
-        return "MagmaQuest", "The Mayor"
-    else
-        return "FishmanQuest", "King Neptune"
-    end
-end
-
---------------------------------------------------
--- BUSCAR NPC EN EL MAPA
---------------------------------------------------
-function FindNPC(npcName)
     local closestNPC = nil
-    local shortestDistance = math.huge
+    local closestDistance = math.huge
     
-    -- Buscar en todo el workspace
-    for _, npc in pairs(WS:GetChildren()) do
-        if npc:IsA("Model") then
-            -- Verificar si coincide el nombre
-            if string.find(npc.Name:lower(), npcName:lower()) or 
-               (npc:FindFirstChild("Humanoid") and npc:FindFirstChild("Head") and 
-                npc.Head:FindFirstChild("Dialog")) then
-                
+    -- Buscar en carpetas de enemigos
+    local enemyFolders = {"Enemies", "NPCs", "Monsters"}
+    
+    for _, folderName in pairs(enemyFolders) do
+        local folder = Workspace:FindFirstChild(folderName)
+        if folder then
+            for _, npc in pairs(folder:GetChildren()) do
+                if npc:IsA("Model") and IsAlive(npc) then
+                    local hrp = npc:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local distance = (Root.Position - hrp.Position).Magnitude
+                        if distance < closestDistance then
+                            closestDistance = distance
+                            closestNPC = npc
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Si no encuentra en carpetas, buscar en todo Workspace
+    if not closestNPC then
+        for _, npc in pairs(Workspace:GetChildren()) do
+            if npc:IsA("Model") and IsAlive(npc) then
                 local hrp = npc:FindFirstChild("HumanoidRootPart")
-                if hrp then
+                if hrp and not Players:GetPlayerFromCharacter(npc) then
                     local distance = (Root.Position - hrp.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
+                    if distance < closestDistance and distance < 500 then
+                        closestDistance = distance
                         closestNPC = npc
                     end
                 end
@@ -99,229 +72,132 @@ function FindNPC(npcName)
     return closestNPC
 end
 
---------------------------------------------------
--- CLICS ULTRA RÁPIDOS MEJORADOS
---------------------------------------------------
-function UltraFastClicks()
-    local viewportSize = workspace.CurrentCamera.ViewportSize
-    local center = Vector2.new(viewportSize.X/2, viewportSize.Y/2)
-    
-    -- Hacer 15 clics ultra rápidos
-    for i = 1, 15 do
-        VIM:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
-        task.wait(0.01)
-        VIM:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
-        task.wait(0.01)
-    end
-end
-
---------------------------------------------------
--- TELETRANSPORTE PRECISO
---------------------------------------------------
 function TeleportToNPC(npc)
-    if not (npc and npc.Parent and Root and Root.Parent) then return false end
+    if not npc or not IsAlive(npc) then return false end
+    if not IsAlive(Character) then return false end
+    
     local hrp = npc:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
     
     -- Teletransportarse encima del NPC
-    Root.CFrame = hrp.CFrame + Vector3.new(0, Config.FarmDistance, 0)
+    Root.CFrame = hrp.CFrame + Vector3.new(0, Settings.FarmDistance, 0)
     return true
 end
 
---------------------------------------------------
--- ACEPTAR QUEST AUTOMÁTICAMENTE
---------------------------------------------------
-function AcceptQuest(npc)
-    if not npc then return false end
+function AttackNPC()
+    -- Usar todas las teclas de ataque posibles
+    local attackKeys = {"E", "F", "R", "T", "Y", "G", "H"}
     
-    -- Buscar diálogo para aceptar quest
-    local head = npc:FindFirstChild("Head")
-    if head then
-        local dialog = head:FindFirstChild("Dialog")
-        if dialog then
-            -- Simular interacción con el NPC
-            fireproximityprompt(dialog)
-            print("📜 Quest aceptado de: " .. npc.Name)
-            return true
-        end
+    for _, key in pairs(attackKeys) do
+        VirtualInput:SendKeyEvent(true, key, false, game)
+        task.wait(0.1)
+        VirtualInput:SendKeyEvent(false, key, false, game)
+        task.wait(0.1)
     end
-    
-    return false
 end
 
---------------------------------------------------
--- SISTEMA PRINCIPAL DE FARM
---------------------------------------------------
-function StartNPCAutoFarm()
-    Config.AutoFarm = true
+-- SISTEMA DE FARM AUTOMÁTICO
+function StartAutoFarm()
+    Settings.AutoFarm = true
     
-    while Config.AutoFarm do
-        if not (Plr.Character and Plr.Character.Humanoid.Health > 0) then
-            print("💀 Personaje muerto, esperando respawn...")
-            task.wait(3)
+    while Settings.AutoFarm do
+        if not IsAlive(Character) then
+            task.wait(2)
+            Character = Player.Character or Player.CharacterAdded:Wait()
+            Root = Character:WaitForChild("HumanoidRootPart")
             continue
         end
         
-        -- Obtener NPC recomendado para el nivel
-        local questName, npcName = GetRecommendedQuestNPC()
-        local playerLevel = GetPlayerLevel()
-        
-        print("🎯 NIVEL " .. playerLevel .. " | QUEST: " .. questName)
-        print("🔍 Buscando NPC: " .. npcName)
-        
-        -- Buscar el NPC
-        local npc = FindNPC(npcName)
+        local npc = FindNearestNPC()
         
         if npc then
-            print("✅ NPC ENCONTRADO: " .. npc.Name)
-            
             -- Teletransportarse al NPC
             if TeleportToNPC(npc) then
-                task.wait(0.5)
+                -- Atacar
+                AttackNPC()
                 
-                -- Intentar aceptar quest
-                AcceptQuest(npc)
-                
-                -- Hacer clics rápidos (para interactuar/atacar)
-                local clickCount = 0
-                while Config.AutoFarm do
-                    UltraFastClicks()
-                    clickCount = clickCount + 1
-                    
-                    -- Mostrar progreso
-                    if clickCount % 3 == 0 then
-                        print("🖱️ Ciclo de clics: " .. clickCount)
-                    end
-                    
-                    -- Cambiar de NPC después de varios ciclos
-                    if clickCount >= 10 then
-                        break
-                    end
-                    
-                    task.wait(0.5)
-                end
+                -- Mostrar información
+                print("🎯 BLACKZ - Farmeando: " .. npc.Name .. " | Vida: " .. math.floor(npc.Humanoid.Health))
             end
         else
-            print("❌ NPC no encontrado: " .. npcName)
-            print("📍 Posición actual: " .. tostring(Root.Position))
+            print("🔍 BLACKZ - Buscando NPCs...")
         end
         
-        task.wait(1)
+        task.wait(Settings.SmoothMode and 0.25 or 0.5)
     end
 end
 
---------------------------------------------------
--- INTERFAZ MEJORADA
---------------------------------------------------
-local sg = Instance.new("ScreenGui", game.CoreGui)
-local mainFrame = Instance.new("Frame", sg)
-mainFrame.Size = UDim2.new(0, 400, 0, 250)
-mainFrame.Position = UDim2.new(0, 10, 0, 10)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-mainFrame.BorderSizePixel = 0
-
--- Título
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "⚡ BLACKZ QUEST NPC FARMER"
-title.TextColor3 = Color3.fromRGB(0, 255, 255)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-
--- Información del jugador
-local levelLabel = Instance.new("TextLabel", mainFrame)
-levelLabel.Size = UDim2.new(1, 0, 0, 25)
-levelLabel.Position = UDim2.new(0, 0, 0, 40)
-levelLabel.Text = "Nivel: " .. GetPlayerLevel()
-levelLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-levelLabel.BackgroundTransparency = 1
-levelLabel.Font = Enum.Font.SourceSans
-
--- Información del quest
-local questLabel = Instance.new("TextLabel", mainFrame)
-questLabel.Size = UDim2.new(1, 0, 0, 25)
-questLabel.Position = UDim2.new(0, 0, 0, 65)
-questLabel.Text = "Quest: Calculando..."
-questLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-questLabel.BackgroundTransparency = 1
-questLabel.Font = Enum.Font.SourceSans
-
--- Estado
-local statusLabel = Instance.new("TextLabel", mainFrame)
-statusLabel.Size = UDim2.new(1, 0, 0, 25)
-statusLabel.Position = UDim2.new(0, 0, 0, 90)
-statusLabel.Text = "Estado: INACTIVO"
-statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Font = Enum.Font.SourceSans
-
--- Botón de control
-local toggleBtn = Instance.new("TextButton", mainFrame)
-toggleBtn.Size = UDim2.new(0.8, 0, 0, 50)
-toggleBtn.Position = UDim2.new(0.1, 0, 0, 120)
-toggleBtn.Text = "🚀 ACTIVAR NPC FARM"
-toggleBtn.BackgroundColor3 = Color3.new(0, 0.6, 0)
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-toggleBtn.Font = Enum.Font.SourceSansBold
-toggleBtn.TextSize = 16
-
--- Contador de clics
-local clickLabel = Instance.new("TextLabel", mainFrame)
-clickLabel.Size = UDim2.new(1, 0, 0, 25)
-clickLabel.Position = UDim2.new(0, 0, 0, 180)
-clickLabel.Text = "Clics: 0"
-clickLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-clickLabel.BackgroundTransparency = 1
-clickLabel.Font = Enum.Font.SourceSans
-
-toggleBtn.MouseButton1Click:Connect(function()
-    Config.AutoFarm = not Config.AutoFarm
-    if Config.AutoFarm then
-        toggleBtn.Text = "⛔ DETENER NPC FARM"
-        toggleBtn.BackgroundColor3 = Color3.new(0.8, 0, 0)
-        statusLabel.Text = "Estado: ACTIVADO"
-        statusLabel.TextColor3 = Color3.new(0, 1, 0)
-        task.spawn(StartNPCAutoFarm)
-    else
-        toggleBtn.Text = "🚀 ACTIVAR NPC FARM"
-        toggleBtn.BackgroundColor3 = Color3.new(0, 0.6, 0)
-        statusLabel.Text = "Estado: INACTIVO"
-        statusLabel.TextColor3 = Color3.new(1, 0, 0)
-    end
+-- INTERFAZ SIMPLE
+local success, Library = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 end)
 
---------------------------------------------------
+if success then
+    local Window = Library.CreateLib("⚡ BLACKZ HUB", "DarkTheme")
+    
+    local MainTab = Window:NewTab("🏠 Main")
+    local MainSection = MainTab:NewSection("Auto Farm")
+    
+    MainSection:NewToggle("🚀 Auto Farm", "Activar farm automático", function(state)
+        Settings.AutoFarm = state
+        if state then
+            task.spawn(StartAutoFarm)
+        end
+    end)
+    
+    MainSection:NewSlider("📏 Distancia", "Distancia de farm", 50, 10, function(value)
+        Settings.FarmDistance = value
+    end)
+    
+    MainSection:NewSlider("🎯 Rango", "Rango de búsqueda", 200, 50, function(value)
+        Settings.BringDistance = value
+    end)
+    
+    local PlayerTab = Window:NewTab("🎮 Player")
+    local PlayerSection = PlayerTab:NewSection("Ajustes")
+    
+    PlayerSection:NewSlider("🚶 WalkSpeed", "Velocidad", 100, 16, function(value)
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.WalkSpeed = value
+        end
+    end)
+    
+    PlayerSection:NewKeybind("🔑 Toggle Menu", "Mostrar/ocultar menú", Enum.KeyCode.RightControl, function()
+        Library:ToggleUI()
+    end)
+else
+    -- Interfaz de respaldo simple
+    local sg = Instance.new("ScreenGui", game.CoreGui)
+    local btn = Instance.new("TextButton", sg)
+    btn.Size = UDim2.new(0, 200, 0, 50)
+    btn.Position = UDim2.new(0, 10, 0, 10)
+    btn.Text = "🚀 ACTIVAR AUTO FARM"
+    btn.BackgroundColor3 = Color3.new(0, 1, 0)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    
+    btn.MouseButton1Click:Connect(function()
+        Settings.AutoFarm = not Settings.AutoFarm
+        if Settings.AutoFarm then
+            btn.Text = "⛔ DETENER AUTO FARM"
+            btn.BackgroundColor3 = Color3.new(1, 0, 0)
+            StartAutoFarm()
+        else
+            btn.Text = "🚀 ACTIVAR AUTO FARM"
+            btn.BackgroundColor3 = Color3.new(0, 1, 0)
+        end
+    end)
+end
+
 -- ANTI-AFK
---------------------------------------------------
-Plr.Idled:Connect(function()
+Player.Idled:Connect(function()
     game:GetService("VirtualUser"):CaptureController()
     game:GetService("VirtualUser"):ClickButton2(Vector2.new())
 end)
 
---------------------------------------------------
--- INICIALIZACIÓN Y ACTUALIZACIÓN EN TIEMPO REAL
---------------------------------------------------
-print("⚡ BLACKZ QUEST NPC FARMER CARGADO!")
-print("🎯 Sistema de farmeo automático por nivel")
-print("📊 Tu nivel actual: " .. GetPlayerLevel())
-
--- Actualizar información en tiempo real
-local clickCount = 0
-task.spawn(function()
-    while true do
-        local questName, npcName = GetRecommendedQuestNPC()
-        questLabel.Text = "Quest: " .. questName
-        levelLabel.Text = "Nivel: " .. GetPlayerLevel()
-        
-        if Config.AutoFarm then
-            clickCount = clickCount + 1
-            clickLabel.Text = "Clics realizados: " .. clickCount
-        end
-        
-        task.wait(2)
-    end
-end)
+-- INICIALIZACIÓN
+print("⚡ BLACKZ HUB CARGADO!")
+print("🎯 Auto Farm simplificado y funcional")
+print("🚀 Sistema listo para farmear")
 
 -- Iniciar automáticamente
-task.spawn(StartNPCAutoFarm)
+task.spawn(StartAutoFarm)
