@@ -1,56 +1,47 @@
--- SEA-3 ADVANCED  | 2025
--- Auto-Raid / Elite / Chest
-local Plr = game:GetService("Players").LocalPlayer
-local VIM = game:GetService("VirtualInputManager")
-local WS  = game:GetService("Workspace")
-local RS  = game:GetService("ReplicatedStorage")
-local TS  = game:GetService("TeleportService")
+-- SCRIPT 5: CONFIGURACIÓN AVANZADA Y PROTECCIONES
 
-assert(game.PlaceId == 7449423635, "Este script solo funciona en Sea-3")
+-- Anti-AFK mejorado
+local VirtualUser = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
 
-local function doTeleport(cf) Plr.Character.HumanoidRootPart.CFrame = cf end
-local function attack()
-    for _,k in ipairs({"E","F","R","T"}) do
-        VIM:SendKeyEvent(true,k,false,game) task.wait(.1)
-        VIM:SendKeyEvent(false,k,false,game) task.wait(.1)
-    end
+-- Protección contra detección
+function SafeTeleport(cframe)
+    pcall(function()
+        LocalPlayer.Character.HumanoidRootPart.CFrame = cframe
+    end)
 end
 
--- AUTO-ELITE
-task.spawn(function()
-    while task.wait(1) do
-        local elite = WS:FindFirstChild("Diablo") or WS:FindFirstChild("Deandre") or WS:FindFirstChild("Urban")
-        if elite then
-            doTeleport(elite.HumanoidRootPart.CFrame + Vector3.new(0,20,0))
-            task.wait(.3); attack()
+-- Función segura para ataques
+function SafeAttack()
+    pcall(function()
+        local attacks = {"E", "F", "R", "T"}
+        for _, key in pairs(attacks) do
+            VirtualInput:SendKeyEvent(true, key, false, game)
+            wait(0.1)
+            VirtualInput:SendKeyEvent(false, key, false, game)
+            wait(0.1)
         end
-    end
-end)
+    end)
+end
 
--- AUTO-RAID
-task.spawn(function()
-    while task.wait(5) do
-        local raid = WS:FindFirstChild("rip_indra True Form") or WS:FindFirstChild("Tyrant Skies")
-        if raid then
-            doTeleport(raid.HumanoidRootPart.CFrame + Vector3.new(0,25,0))
-            task.wait(.3); attack()
-        end
-    end
-end)
+-- Sistema de logs
+function Log(message)
+    print("[" .. os.date("%X") .. "] " .. message)
+end
 
--- AUTO-CHEST
-task.spawn(function()
-    while task.wait(.8) do
-        for _,c in pairs(WS:GetDescendants()) do
-            if c.Name:find("Chest") and c:FindFirstChild("Root") then
-                if (Plr.Character.HumanoidRootPart.Position - c.Root.Position).Magnitude < 2500 then
-                    doTeleport(c.Root.CFrame)
-                    task.wait(.2)
-                end
-            end
-        end
-    end
-end)
+-- Verificador de seguridad
+function IsSafe()
+    if not LocalPlayer.Character then return false end
+    if not LocalPlayer.Character:FindFirstChild("Humanoid") then return false end
+    if LocalPlayer.Character.Humanoid.Health <= 0 then return false end
+    return true
+end
 
--- ANTI-AFK
-Plr.Idled:Connect(function() game:GetService("VirtualUser"):ClickButton2(Vector2.new()) end)
+-- Inicialización segura
+pcall(function()
+    Log("Script iniciado correctamente")
+    Log("Nivel del jugador: " .. GetPlayerLevel())
+end)
