@@ -1,47 +1,85 @@
--- SEA-1 + UI + TELEPORTS 2025 – El Fam
-local Plr = game:GetService("Players").LocalPlayer
+-- SEA-1 AUTO-FARM REFORZADO – EL FAM (NO ENISIA)
+local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
 local WS  = game:GetService("Workspace")
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Win = Library.CreateLib("🔥 SEA-1 HUB","DarkTheme")
 
-local FarmTab = Win:NewTab("⚔️ Farm")
-local FarmSec = FarmTab:NewSection("Auto-Farm")
-getgenv().Farm = false
+local Plr   = Players.LocalPlayer
+local Root  = Plr.Character:WaitForChild("HumanoidRootPart")
 
-FarmSec:NewToggle("Activar", "", function(s)
-    getgenv().Farm = s
-    while getgenv().Farm do
-        local c, d = nil, math.huge
-        for _,v in pairs(WS.Enemies:GetChildren()) do
-            if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                local dist = (Plr.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                if dist < d then c, d = v, dist end
+local Config = {
+    AutoFarm     = false,
+    FarmDistance = 16,
+    AttackDelay  = 0.12
+}
+
+--------------------------------------------------
+-- 1) BUSCA NPC VÁLIDO
+--------------------------------------------------
+local function getNearest()
+    if not (Root and Root.Parent) then return nil end
+    local near, dist = nil, math.huge
+    for _, v in ipairs(WS.Enemies:GetChildren()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            local hrp = v:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local d = (Root.Position - hrp.Position).Magnitude
+                if d < dist then near, dist = v, d end
             end
         end
-        if c then
-            Plr.Character.HumanoidRootPart.CFrame = c.HumanoidRootPart.CFrame + Vector3.new(0,16,0)
-            task.wait(.25)
-            for _,k in ipairs({"E","F","R","T"}) do
-                VIM:SendKeyEvent(true,k,false,game) task.wait(.12)
-                VIM:SendKeyEvent(false,k,false,game) task.wait(.12)
-            end
-        end
-        task.wait(.35)
     end
+    return near
+end
+
+--------------------------------------------------
+-- 2) TELEPORTA Y ATACA
+--------------------------------------------------
+local function tpAttack(npc)
+    if not (npc and npc.Parent and Root and Root.Parent) then return end
+    local hrp = npc:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    -- offset aleatorio para evitar snap flag
+    local offset = Vector3.new(math.random(-2, 2), Config.FarmDistance, math.random(-2, 2))
+    Root.CFrame = hrp.CFrame + offset
+
+    task.wait(0.2)
+    for _, k in ipairs({"E", "F", "R", "T"}) do
+        if not (npc and npc.Parent) then break end
+        VIM:SendKeyEvent(true, k, false, game)
+        task.wait(Config.AttackDelay)
+        VIM:SendKeyEvent(false, k, false, game)
+        task.wait(Config.AttackDelay)
+    end
+end
+
+--------------------------------------------------
+-- 3) LOOP PRINCIPAL
+--------------------------------------------------
+local function startLoop()
+    Config.AutoFarm = true
+    while Config.AutoFarm do
+        tpAttack(getNearest())
+        task.wait(0.4)
+    end
+end
+
+--------------------------------------------------
+-- 4) MENÚ RÁPIDO (Kavo)
+--------------------------------------------------
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window  = Library.CreateLib("🌊 SEA-1 REFORZADO","DarkTheme")
+local Tab    = Window:NewTab("Auto-Farm")
+local Sec    = Tab:NewSection("Control")
+
+Sec:NewToggle("🚀 Activar", "", function(s)
+    if s then startLoop() else Config.AutoFarm = false end
 end)
 
-local TPTab = Win:NewTab("🧭 TPs")
-local TPSec = TPTab:NewSection("Islas Sea-1")
-local islands = {
-    {"Starter", CFrame.new(-100,50,-100)},
-    {"Jungle", CFrame.new(-1250,70,-250)},
-    {"Pirate Village", CFrame.new(-1150,90,3800)},
-    {"Desert", CFrame.new(1000,70,4000)},
-    {"Snow", CFrame.new(1300,150,-1300)}
-}
-for _,v in ipairs(islands) do
-    TPSec:NewButton(v[1], "", function()
-        Plr.Character.HumanoidRootPart.CFrame = v[2]
-    end)
-end
+Sec:NewSlider("📏 Distancia", "", 50, 10, function(v) Config.FarmDistance = v end)
+
+--------------------------------------------------
+-- 5) ANTI-AFK
+--------------------------------------------------
+Plr.Idled:Connect(function()
+    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+end)
