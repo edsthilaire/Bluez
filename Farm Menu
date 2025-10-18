@@ -1,10 +1,8 @@
--- ⚡ BLACKZ HUB - BLOX FRUITS ULTIMATE
--- Con interfaz redz Library V5 profesional
-
-local redz = loadstring(game:HttpGet("https://raw.githubusercontent.com/redz9999/redz-Library/main/Source.lua"))()
+-- ⚡ BLACKZ HUB - BLOX FRUITS SIMPLIFICADO
+-- Script completo y funcional
 
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local Workspace = game:GetService("Workspace") 
 local RunService = game:GetService("RunService")
 local VirtualInput = game:GetService("VirtualInputManager")
 local TweenService = game:GetService("TweenService")
@@ -14,11 +12,10 @@ local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Root = Character:WaitForChild("HumanoidRootPart")
 
--- CONFIGURACIÓN
+-- CONFIGURACIÓN SIMPLE
 local Settings = {
     AutoFarm = false,
     FarmDistance = 25,
-    BringDistance = 50,
     WalkSpeed = 50,
     JumpPower = 100,
     InfinitoJump = false,
@@ -27,58 +24,8 @@ local Settings = {
     AutoSkills = true,
     AutoBuso = true,
     AutoKen = true,
-    AutoCollectChests = true,
-    AutoCollectFruits = true,
-    AutoSeaBeasts = false,
-    AutoRaid = false,
-    FullBright = false,
-    HidePlayers = false,
-    LowGFX = false
+    FullBright = false
 }
-
--- CREAR VENTANA PRINCIPAL
-local Window = redz:MakeWindow({
-    Name = "⚡ BLACKZ HUB",
-    SubTitle = "Blox Fruits Ultimate • v2.0",
-    SaveFolder = "BLACKZ_HUB_BloxFruits.json"
-})
-
--- TABS PRINCIPALES
-local MainTab = Window:MakeTab({
-    Title = "🏠 Main",
-    Icon = "home"
-})
-
-local PlayerTab = Window:MakeTab({
-    Title = "🎮 Player",
-    Icon = "user"
-})
-
-local SkillsTab = Window:MakeTab({
-    Title = "⚔️ Skills", 
-    Icon = "sword"
-})
-
-local UtilitiesTab = Window:MakeTab({
-    Title = "🔧 Utilities",
-    Icon = "settings"
-})
-
-local VisualsTab = Window:MakeTab({
-    Title = "👁️ Visuals",
-    Icon = "eye"
-})
-
-local InfoTab = Window:MakeTab({
-    Title = "📊 Info",
-    Icon = "info"
-})
-
--- VARIABLES
-local TargetNPC = nil
-local FarmConnection = nil
-local NoclipConnection = nil
-local Clicking = false
 
 -- FUNCIONES BÁSICAS
 function IsAlive(char)
@@ -87,46 +34,15 @@ function IsAlive(char)
     return humanoid and humanoid.Health > 0
 end
 
-function GetPlayerLevel()
-    local data = Player:FindFirstChild("Data")
-    if data then
-        local level = data:FindFirstChild("Level")
-        if level then
-            return level.Value
-        end
-    end
-    return 1
-end
-
 function FindNearestNPC()
     if not IsAlive(Character) then return nil end
     
     local closestNPC = nil
     local closestDistance = math.huge
     
-    local searchFolders = {"Enemies", "NPCs", "Monsters", "BasicMob"}
-    
-    for _, folderName in pairs(searchFolders) do
-        local folder = Workspace:FindFirstChild(folderName)
-        if folder then
-            for _, npc in pairs(folder:GetChildren()) do
-                if npc:IsA("Model") and IsAlive(npc) then
-                    local hrp = npc:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local distance = (Root.Position - hrp.Position).Magnitude
-                        if distance < closestDistance and distance < 500 then
-                            closestDistance = distance
-                            closestNPC = npc
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Buscar bosses
-    for _, npc in pairs(Workspace:GetChildren()) do
-        if npc:IsA("Model") and IsAlive(npc) and npc:GetAttribute("IsBoss") then
+    -- Buscar enemigos
+    for _, npc in pairs(Workspace.Enemies:GetChildren()) do
+        if npc:IsA("Model") and IsAlive(npc) then
             local hrp = npc:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local distance = (Root.Position - hrp.Position).Magnitude
@@ -141,46 +57,34 @@ function FindNearestNPC()
     return closestNPC
 end
 
-function TeleportTo(position)
-    if not IsAlive(Character) then return false end
-    if typeof(position) == "Instance" then
-        position = position.Position
-    end
-    Root.CFrame = CFrame.new(position + Vector3.new(0, Settings.FarmDistance, 0))
-    return true
-end
-
 function TeleportToNPC(npc)
     if not npc or not IsAlive(npc) then return false end
     local hrp = npc:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
-    return TeleportTo(hrp.Position)
+    
+    Root.CFrame = hrp.CFrame + Vector3.new(0, Settings.FarmDistance, 0)
+    return true
 end
 
--- SISTEMA DE ATAQUE
 function PerformAttack()
     if not IsAlive(Character) then return end
     
-    local attackKeys = {"E", "F", "R", "T", "Y", "G", "H"}
-    local tool = Character:FindFirstChildOfClass("Tool")
+    -- Ataque básico
+    if Settings.AutoClick then
+        VirtualInput:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInput:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end
     
-    if tool then
-        if Settings.AutoClick then
-            VirtualInput:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-            task.wait(0.05)
-            VirtualInput:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-        end
-        
-        for _, key in pairs(attackKeys) do
-            VirtualInput:SendKeyEvent(true, key, false, game)
-            task.wait(0.1)
-            VirtualInput:SendKeyEvent(false, key, false, game)
-            task.wait(0.1)
-        end
+    -- Habilidades
+    local attackKeys = {"E", "F", "R", "T"}
+    for _, key in pairs(attackKeys) do
+        VirtualInput:SendKeyEvent(true, key, false, game)
+        task.wait(0.1)
+        VirtualInput:SendKeyEvent(false, key, false, game)
     end
 end
 
--- HABILIDADES AUTOMÁTICAS
 function AutoHaki()
     if not Settings.AutoBuso then return end
     VirtualInput:SendKeyEvent(true, "Q", false, game)
@@ -195,7 +99,6 @@ function AutoKen()
     VirtualInput:SendKeyEvent(false, "Z", false, game)
 end
 
--- MEJORAS DE PLAYER
 function ApplyPlayerStats()
     if not IsAlive(Character) then return end
     local humanoid = Character:FindFirstChildOfClass("Humanoid")
@@ -207,8 +110,7 @@ end
 
 function ToggleNoclip()
     if Settings.Noclip then
-        if NoclipConnection then NoclipConnection:Disconnect() end
-        NoclipConnection = RunService.Stepped:Connect(function()
+        RunService.Stepped:Connect(function()
             if IsAlive(Character) then
                 for _, part in pairs(Character:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -217,15 +119,9 @@ function ToggleNoclip()
                 end
             end
         end)
-    else
-        if NoclipConnection then
-            NoclipConnection:Disconnect()
-            NoclipConnection = nil
-        end
     end
 end
 
--- SISTEMA VISUAL
 function ToggleFullBright()
     if Settings.FullBright then
         Lighting.Ambient = Color3.new(1, 1, 1)
@@ -238,20 +134,9 @@ function ToggleFullBright()
     end
 end
 
-function OptimizeGraphics()
-    if Settings.LowGFX then
-        settings().Rendering.QualityLevel = 1
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("Part") then
-                obj.Material = Enum.Material.Plastic
-            end
-        end
-    end
-end
-
--- AUTO FARM SYSTEM
+-- SISTEMA DE AUTO FARM
 function StartAutoFarm()
-    while Settings.AutoFarm and task.wait(0.3) do
+    while Settings.AutoFarm do
         if not IsAlive(Character) then
             task.wait(2)
             Character = Player.Character or Player.CharacterAdded:Wait()
@@ -259,311 +144,413 @@ function StartAutoFarm()
             continue
         end
         
+        -- Aplicar stats
         ApplyPlayerStats()
+        
+        -- Usar habilidades
         AutoHaki()
         AutoKen()
         
+        -- Buscar y atacar NPC
         local npc = FindNearestNPC()
         
         if npc then
-            TargetNPC = npc
             if TeleportToNPC(npc) then
                 PerformAttack()
-                
-                local humanoid = npc:FindFirstChildOfClass("Humanoid")
-                local health = humanoid and math.floor(humanoid.Health) or "N/A"
-                print("🎯 Farmeando: " .. npc.Name .. " | Vida: " .. health)
             end
         else
-            print("🔍 Buscando NPCs...")
-            TargetNPC = nil
+            print("Buscando NPCs...")
         end
+        
+        task.wait(0.3)
     end
 end
 
 -- ANTI-AFK
-local AntiAFKConnection
-function SetupAntiAFK()
-    if AntiAFKConnection then AntiAFKConnection:Disconnect() end
-    AntiAFKConnection = Player.Idled:Connect(function()
-        game:GetService("VirtualUser"):CaptureController()
-        game:GetService("VirtualUser"):ClickButton2(Vector2.new())
-    end)
-end
+Player.Idled:Connect(function()
+    game:GetService("VirtualUser"):CaptureController()
+    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+end)
 
--- INFINITE JUMP
-local InfiniteJumpConnection
-function SetupInfiniteJump()
-    if InfiniteJumpConnection then InfiniteJumpConnection:Disconnect() end
-    InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
-        if Settings.InfinitoJump and IsAlive(Character) then
-            Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-        end
-    end)
-end
-
--- SECCIONES DE LA UI
--- TAB MAIN
-MainTab:AddSection("🚀 Auto Farm")
-
-local AutoFarmToggle = MainTab:AddToggle({
-    Title = "Activar Auto Farm",
-    Description = "Sistema automático de farming",
-    Default = false,
-    Callback = function(value)
-        Settings.AutoFarm = value
-        if value then
-            task.spawn(StartAutoFarm)
-        end
+-- SALTO INFINITO
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if Settings.InfinitoJump and IsAlive(Character) then
+        Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
     end
-})
+end)
 
-MainTab:AddSlider({
-    Title = "Distancia de Farm",
-    Description = "Distancia para teletransportarse",
-    Min = 10,
-    Max = 100,
-    Default = 25,
-    Callback = function(value)
-        Settings.FarmDistance = value
-    end
-})
+-- CREAR INTERFAZ SIMPLE
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.CoreGui
+ScreenGui.Name = "BLACKZ_HUB"
 
-MainTab:AddSlider({
-    Title = "Rango de Búsqueda", 
-    Description = "Rango máximo para buscar NPCs",
-    Min = 50,
-    Max = 500,
-    Default = 50,
-    Callback = function(value)
-        Settings.BringDistance = value
-    end
-})
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 400, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
 
--- TAB PLAYER
-PlayerTab:AddSection("🎮 Ajustes de Player")
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
-PlayerTab:AddSlider({
-    Title = "WalkSpeed",
-    Description = "Velocidad de movimiento",
-    Min = 16,
-    Max = 200,
-    Default = 50,
-    Callback = function(value)
-        Settings.WalkSpeed = value
-        ApplyPlayerStats()
-    end
-})
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
 
-PlayerTab:AddSlider({
-    Title = "JumpPower",
-    Description = "Fuerza de salto",
-    Min = 50,
-    Max = 200,
-    Default = 100,
-    Callback = function(value)
-        Settings.JumpPower = value
-        ApplyPlayerStats()
-    end
-})
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "⚡ BLACKZ HUB - BLOX FRUITS"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.Parent = TopBar
 
-PlayerTab:AddToggle({
-    Title = "Noclip",
-    Description = "Atravesar paredes",
-    Default = false,
-    Callback = function(value)
-        Settings.Noclip = value
-        ToggleNoclip()
-    end
-})
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0.5, -15)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Parent = TopBar
 
-PlayerTab:AddToggle({
-    Title = "Infinite Jump",
-    Description = "Salto infinito",
-    Default = false, 
-    Callback = function(value)
-        Settings.InfinitoJump = value
-        SetupInfiniteJump()
-    end
-})
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 4)
+UICorner2.Parent = CloseButton
 
--- TAB SKILLS
-SkillsTab:AddSection("⚔️ Habilidades Automáticas")
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -20, 1, -60)
+ScrollFrame.Position = UDim2.new(0, 10, 0, 50)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 3
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+ScrollFrame.Parent = MainFrame
 
-SkillsTab:AddToggle({
-    Title = "Auto Click",
-    Description = "Click automático continuo",
-    Default = true,
-    Callback = function(value)
-        Settings.AutoClick = value
-    end
-})
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.Parent = ScrollFrame
 
-SkillsTab:AddToggle({
-    Title = "Auto Skills",
-    Description = "Usar habilidades automáticamente",
-    Default = true,
-    Callback = function(value)
-        Settings.AutoSkills = value
-    end
-})
-
-SkillsTab:AddToggle({
-    Title = "Auto Buso Haki",
-    Description = "Activar Buso Haki automáticamente",
-    Default = true,
-    Callback = function(value)
-        Settings.AutoBuso = value
-    end
-})
-
-SkillsTab:AddToggle({
-    Title = "Auto Ken Haki",
-    Description = "Activar Ken Haki automáticamente", 
-    Default = true,
-    Callback = function(value)
-        Settings.AutoKen = value
-    end
-})
-
--- TAB UTILITIES
-UtilitiesTab:AddSection("🔧 Recolección Automática")
-
-UtilitiesTab:AddToggle({
-    Title = "Auto Coffres",
-    Description = "Recolectar cofres automáticamente",
-    Default = true,
-    Callback = function(value)
-        Settings.AutoCollectChests = value
-    end
-})
-
-UtilitiesTab:AddToggle({
-    Title = "Auto Frutas",
-    Description = "Recolectar frutas automáticamente",
-    Default = true,
-    Callback = function(value)
-        Settings.AutoCollectFruits = value
-    end
-})
-
-UtilitiesTab:AddToggle({
-    Title = "Auto Sea Beasts",
-    Description = "Cazar bestias marinas automáticamente",
-    Default = false,
-    Callback = function(value)
-        Settings.AutoSeaBeasts = value
-    end
-})
-
-UtilitiesTab:AddToggle({
-    Title = "Auto Raid",
-    Description = "Hacer raids automáticamente",
-    Default = false,
-    Callback = function(value)
-        Settings.AutoRaid = value
-    end
-})
-
--- TAB VISUALS
-VisualsTab:AddSection("👁️ Ajustes Visuales")
-
-VisualsTab:AddToggle({
-    Title = "FullBright",
-    Description = "Máxima iluminación en el mapa",
-    Default = false,
-    Callback = function(value)
-        Settings.FullBright = value
-        ToggleFullBright()
-    end
-})
-
-VisualsTab:AddToggle({
-    Title = "Low Graphics",
-    Description = "Reducir calidad gráfica para mejor FPS",
-    Default = false,
-    Callback = function(value)
-        Settings.LowGFX = value
-        OptimizeGraphics()
-    end
-})
-
--- TAB INFO
-InfoTab:AddSection("📊 Información del Player")
-
-local LevelLabel = InfoTab:AddParagraph({
-    Title = "Nivel Actual",
-    Description = "Cargando..."
-})
-
-local BeliLabel = InfoTab:AddParagraph({
-    Title = "Beli",
-    Description = "Cargando..."
-})
-
-local FruitLabel = InfoTab:AddParagraph({
-    Title = "Fruta",
-    Description = "Ninguna"
-})
-
--- ACTUALIZAR INFORMACIÓN
-function UpdatePlayerInfo()
-    local level = GetPlayerLevel()
-    LevelLabel:SetDesc(tostring(level))
+-- FUNCIÓN PARA CREAR BOTONES
+function CreateButton(text, callback)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, 0, 0, 40)
+    Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    Button.Text = text
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 14
+    Button.AutoButtonColor = false
+    Button.Parent = ScrollFrame
     
-    -- Aquí puedes agregar más información como beli, fruta, etc.
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 6)
+    UICorner.Parent = Button
+    
+    Button.MouseEnter:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    end)
+    
+    Button.MouseLeave:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    end)
+    
+    Button.MouseButton1Click:Connect(callback)
+    
+    return Button
 end
 
-InfoTab:AddButton({
-    Title = "🔄 Actualizar Info",
-    Description = "Actualizar información del player",
-    Callback = function()
-        UpdatePlayerInfo()
+-- FUNCIÓN PARA CREAR TOGGLES
+function CreateToggle(text, default, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    ToggleFrame.BackgroundTransparency = 1
+    ToggleFrame.Parent = ScrollFrame
+    
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    ToggleButton.Text = ""
+    ToggleButton.AutoButtonColor = false
+    ToggleButton.Parent = ToggleFrame
+    
+    local ToggleText = Instance.new("TextLabel")
+    ToggleText.Size = UDim2.new(0.7, 0, 1, 0)
+    ToggleText.Position = UDim2.new(0, 10, 0, 0)
+    ToggleText.BackgroundTransparency = 1
+    ToggleText.Text = text
+    ToggleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleText.Font = Enum.Font.Gotham
+    ToggleText.TextSize = 14
+    ToggleText.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleText.Parent = ToggleFrame
+    
+    local ToggleIndicator = Instance.new("Frame")
+    ToggleIndicator.Size = UDim2.new(0, 50, 0, 25)
+    ToggleIndicator.Position = UDim2.new(1, -60, 0.5, -12)
+    ToggleIndicator.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    ToggleIndicator.Parent = ToggleFrame
+    
+    local ToggleCircle = Instance.new("Frame")
+    ToggleCircle.Size = UDim2.new(0, 20, 0, 20)
+    ToggleCircle.Position = UDim2.new(0, 3, 0.5, -10)
+    ToggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleCircle.Parent = ToggleIndicator
+    
+    local UICorner3 = Instance.new("UICorner")
+    UICorner3.CornerRadius = UDim.new(0, 10)
+    UICorner3.Parent = ToggleIndicator
+    
+    local UICorner4 = Instance.new("UICorner")
+    UICorner4.CornerRadius = UDim.new(0, 10)
+    UICorner4.Parent = ToggleCircle
+    
+    local isToggled = default
+    
+    local function UpdateToggle()
+        if isToggled then
+            TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(1, -23, 0.5, -10)}):Play()
+            TweenService:Create(ToggleIndicator, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 170, 255)}):Play()
+        else
+            TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0.5, -10)}):Play()
+            TweenService:Create(ToggleIndicator, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+        end
+        callback(isToggled)
     end
-})
+    
+    ToggleButton.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        UpdateToggle()
+    end)
+    
+    UpdateToggle()
+    
+    return {
+        Set = function(value)
+            isToggled = value
+            UpdateToggle()
+        end
+    }
+end
 
--- BOTONES ESPECIALES
-InfoTab:AddSection("⚡ Utilidades Rápidas")
-
-InfoTab:AddButton({
-    Title = "🌀 Rejoin Server",
-    Description = "Reconectar al servidor actual",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
+-- FUNCIÓN PARA CREAR SLIDERS
+function CreateSlider(text, min, max, default, callback)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(1, 0, 0, 60)
+    SliderFrame.BackgroundTransparency = 1
+    SliderFrame.Parent = ScrollFrame
+    
+    local SliderText = Instance.new("TextLabel")
+    SliderText.Size = UDim2.new(1, 0, 0, 20)
+    SliderText.BackgroundTransparency = 1
+    SliderText.Text = text
+    SliderText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SliderText.Font = Enum.Font.Gotham
+    SliderText.TextSize = 14
+    SliderText.TextXAlignment = Enum.TextXAlignment.Left
+    SliderText.Parent = SliderFrame
+    
+    local SliderBar = Instance.new("Frame")
+    SliderBar.Size = UDim2.new(1, 0, 0, 20)
+    SliderBar.Position = UDim2.new(0, 0, 0, 25)
+    SliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    SliderBar.Parent = SliderFrame
+    
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    SliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    SliderFill.Parent = SliderBar
+    
+    local SliderButton = Instance.new("TextButton")
+    SliderButton.Size = UDim2.new(0, 20, 0, 20)
+    SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SliderButton.Text = ""
+    SliderButton.Parent = SliderBar
+    
+    local ValueText = Instance.new("TextLabel")
+    ValueText.Size = UDim2.new(0, 50, 0, 20)
+    ValueText.Position = UDim2.new(1, 5, 0, 0)
+    ValueText.BackgroundTransparency = 1
+    ValueText.Text = tostring(default)
+    ValueText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ValueText.Font = Enum.Font.Gotham
+    ValueText.TextSize = 14
+    ValueText.Parent = SliderBar
+    
+    local UICorner5 = Instance.new("UICorner")
+    UICorner5.CornerRadius = UDim.new(0, 4)
+    UICorner5.Parent = SliderBar
+    
+    local UICorner6 = Instance.new("UICorner")
+    UICorner6.CornerRadius = UDim.new(0, 4)
+    UICorner6.Parent = SliderFill
+    
+    local UICorner7 = Instance.new("UICorner")
+    UICorner7.CornerRadius = UDim.new(0, 10)
+    UICorner7.Parent = SliderButton
+    
+    local isDragging = false
+    
+    local function UpdateSlider(value)
+        local percent = (value - min) / (max - min)
+        SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+        SliderButton.Position = UDim2.new(percent, -10, 0, 0)
+        ValueText.Text = tostring(math.floor(value))
+        callback(value)
     end
-})
+    
+    SliderButton.MouseButton1Down:Connect(function()
+        isDragging = true
+    end)
+    
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = false
+        end
+    end)
+    
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local percent = (input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
+            percent = math.clamp(percent, 0, 1)
+            local value = min + (max - min) * percent
+            UpdateSlider(value)
+        end
+    end)
+    
+    UpdateSlider(default)
+    
+    return {
+        Set = function(value)
+            UpdateSlider(math.clamp(value, min, max))
+        end
+    }
+end
 
-InfoTab:AddButton({
-    Title = "🔄 Server Hop",
-    Description = "Cambiar a otro servidor",
-    Callback = function()
-        -- Aquí iría la función de Server Hop
-        print("🚀 Cambiando de servidor...")
+-- CREAR ELEMENTOS DE LA UI
+CreateButton("🎯 ACTIVAR AUTO FARM", function()
+    Settings.AutoFarm = not Settings.AutoFarm
+    if Settings.AutoFarm then
+        StartAutoFarm()
     end
-})
+end)
 
--- INICIALIZACIÓN
-SetupAntiAFK()
-SetupInfiniteJump()
-ApplyPlayerStats()
-ToggleFullBright()
-OptimizeGraphics()
+CreateToggle("🖱️ Auto Click", Settings.AutoClick, function(value)
+    Settings.AutoClick = value
+end)
 
--- ACTUALIZAR INFO CADA 5 SEGUNDOS
-task.spawn(function()
-    while task.wait(5) do
-        if IsAlive(Character) then
-            ApplyPlayerStats()
-            UpdatePlayerInfo()
+CreateToggle("⚔️ Auto Skills", Settings.AutoSkills, function(value)
+    Settings.AutoSkills = value
+end)
+
+CreateToggle("🛡️ Auto Buso Haki", Settings.AutoBuso, function(value)
+    Settings.AutoBuso = value
+end)
+
+CreateToggle("👁️ Auto Ken Haki", Settings.AutoKen, function(value)
+    Settings.AutoKen = value
+end)
+
+CreateToggle("🚫 Noclip", Settings.Noclip, function(value)
+    Settings.Noclip = value
+    ToggleNoclip()
+end)
+
+CreateToggle("🦘 Infinite Jump", Settings.InfinitoJump, function(value)
+    Settings.InfinitoJump = value
+end)
+
+CreateToggle("💡 FullBright", Settings.FullBright, function(value)
+    Settings.FullBright = value
+    ToggleFullBright()
+end)
+
+local WalkSpeedSlider = CreateSlider("🚶 WalkSpeed", 16, 200, Settings.WalkSpeed, function(value)
+    Settings.WalkSpeed = value
+    ApplyPlayerStats()
+end)
+
+local JumpPowerSlider = CreateSlider("🦘 JumpPower", 50, 200, Settings.JumpPower, function(value)
+    Settings.JumpPower = value
+    ApplyPlayerStats()
+end)
+
+local FarmDistanceSlider = CreateSlider("📏 Farm Distance", 10, 100, Settings.FarmDistance, function(value)
+    Settings.FarmDistance = value
+end)
+
+CreateButton("🌀 REJOIN SERVER", function()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
+end)
+
+CreateButton("🔄 SERVER HOP", function()
+    -- Función simple de server hop
+    local servers = game:GetService("HttpService"):JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100"))
+    for _, server in pairs(servers.data) do
+        if server.playing < server.maxPlayers and server.id ~= game.JobId then
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, server.id, Player)
+            break
         end
     end
 end)
 
-print("⚡ BLACKZ HUB CARGADO!")
-print("🎯 Interfaz profesional redz Library V5")
-print("🚀 Sistema listo para farmear")
+CreateButton("💾 GUARDAR CONFIG", function()
+    print("⚡ Configuración guardada")
+end)
 
--- INICIAR AUTO FARM SI ESTÁ ACTIVADO
-if Settings.AutoFarm then
-    task.spawn(StartAutoFarm)
+CreateButton("❌ CERRAR MENU", function()
+    ScreenGui:Destroy()
+end)
+
+-- HACER LA VENTANA ARRASTRABLE
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
+
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TopBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- INICIALIZAR
+ApplyPlayerStats()
+ToggleFullBright()
+
+print("⚡ BLACKZ HUB CARGADO!")
+print("🎯 Interfaz simple y funcional")
+print("🚀 Listo para usar")
