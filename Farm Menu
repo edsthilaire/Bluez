@@ -1,275 +1,86 @@
--- ⚡ BLACKZ AUTO-FARM ULTRA - TELEPORT + ATAQUES INVISIBLES
--- Teletransporta encima del NPC | Ataques desde lejos | Máxima velocidad
-
+--⚡ BLACKZ "CLIC-MUERTE-TP" – SEA-1
+-- Clic invisible en pantalla → mata → MUERE → TP al siguiente
 local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
 local WS = game:GetService("Workspace")
-local Plr = Players.LocalPlayer
 
-repeat task.wait() until Plr.Character
+local Plr = Players.LocalPlayer
 local Root = Plr.Character:WaitForChild("HumanoidRootPart")
 
-local Config = {
-    AutoFarm = true,  -- Activado por defecto
-    FarmDistance = 25, -- Altura sobre NPC
-    AttackSpeed = 0.05, -- Máxima velocidad de ataque
-    TeleportSpeed = 0.1,
-}
-
--- Lista de NPCs asesinados recientemente
-local KilledNPCs = {}
+local Config = { AutoFarm = false }
 
 --------------------------------------------------
--- FUNCIÓN BUSCAR NPC MÁS CERCANO Y VIVO
+-- CLIC EN PANTALLA GRANDE (sin apuntar)
 --------------------------------------------------
-local function getNearestAliveNPC()
+local function bigClick()
+    -- clic izquierdo DOWN + UP en el centro de la pantalla
+    local center = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2,
+                               workspace.CurrentCamera.ViewportSize.Y/2)
+    VIM:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
+    task.wait()
+    VIM:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
+end
+
+--------------------------------------------------
+-- BUSCA NPC VÁLIDO
+--------------------------------------------------
+local function getNearest()
     if not (Root and Root.Parent) then return nil end
-    
-    local nearestNPC = nil
-    local shortestDistance = math.huge
-    local playerPos = Root.Position
-    
-    -- Buscar en todas las ubicaciones posibles
-    local searchFolders = {"Enemies", "NPCs", "Monsters", "Bandits", "Pirates"}
-    
-    for _, folderName in pairs(searchFolders) do
-        local folder = WS:FindFirstChild(folderName)
-        if folder then
-            for _, npc in pairs(folder:GetChildren()) do
-                if npc:IsA("Model") and not KilledNPCs[npc] then
-                    local humanoid = npc:FindFirstChild("Humanoid")
-                    local hrp = npc:FindFirstChild("HumanoidRootPart")
-                    
-                    if humanoid and hrp and humanoid.Health > 0 then
-                        local distance = (playerPos - hrp.Position).Magnitude
-                        if distance < shortestDistance then
-                            shortestDistance = distance
-                            nearestNPC = npc
-                        end
-                    elseif humanoid and humanoid.Health <= 0 then
-                        -- Marcar NPC como muerto
-                        KilledNPCs[npc] = true
-                    end
-                end
+    local near, dist = nil, math.huge
+    for _, v in ipairs(WS.Enemies:GetChildren()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            local hrp = v:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local d = (Root.Position - hrp.Position).Magnitude
+                if d < dist then near, dist = v, d end
             end
         end
     end
-    
-    -- Si no encuentra en carpetas, buscar en todo Workspace
-    if not nearestNPC then
-        for _, npc in pairs(WS:GetChildren()) do
-            if npc:IsA("Model") and not KilledNPCs[npc] then
-                local humanoid = npc:FindFirstChild("Humanoid")
-                local hrp = npc:FindFirstChild("HumanoidRootPart")
-                
-                if humanoid and hrp and humanoid.Health > 0 then
-                    -- Filtrar NPCs reales (no jugadores)
-                    if not Players:GetPlayerFromCharacter(npc) then
-                        local distance = (playerPos - hrp.Position).Magnitude
-                        if distance < shortestDistance and distance < 500 then
-                            shortestDistance = distance
-                            nearestNPC = npc
-                        end
-                    end
-                elseif humanoid and humanoid.Health <= 0 then
-                    KilledNPCs[npc] = true
-                end
-            end
-        end
-    end
-    
-    return nearestNPC
+    return near
 end
 
 --------------------------------------------------
--- TELETRANSPORTE INSTANTÁNEO ENCIMA DEL NPC
+-- LOOP: CLICAR HASTA QUE MUERA → LUEGO TP
 --------------------------------------------------
-local function teleportAboveNPC(npc)
-    if not (npc and npc.Parent and Root and Root.Parent) then return false end
-    
-    local hrp = npc:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    -- Teletransportarse directamente encima del NPC
-    local targetPosition = hrp.Position + Vector3.new(0, Config.FarmDistance, 0)
-    Root.CFrame = CFrame.new(targetPosition)
-    
-    return true
-end
-
---------------------------------------------------
--- ATAQUES ULTRA RÁPIDOS DESDE LEJOS (INVISIBLES)
---------------------------------------------------
-local function ultraFastAttack()
-    -- Todas las teclas de ataque posibles
-    local attackKeys = {"E", "F", "R", "T", "Y", "G", "H", "X", "C", "V", "B", "N"}
-    
-    -- Ejecutar múltiples ataques simultáneamente
-    for _, key in pairs(attackKeys) do
-        VIM:SendKeyEvent(true, key, false, game)
-    end
-    
-    task.wait(Config.AttackSpeed)
-    
-    -- Soltar todas las teclas
-    for _, key in pairs(attackKeys) do
-        VIM:SendKeyEvent(false, key, false, game)
-    end
-end
-
---------------------------------------------------
--- ATAQUES DE RANGO LARGO (SIN MOVERSE)
---------------------------------------------------
-local function longRangeAttack(npc)
-    if not npc then return end
-    
-    local hrp = npc:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    
-    -- Ataques especiales de largo alcance
-    local longRangeKeys = {"R", "T", "Y", "G", "H"} -- Habilidades de rango
-    
-    for _, key in pairs(longRangeKeys) do
-        VIM:SendKeyEvent(true, key, false, game)
-        task.wait(0.02)
-        VIM:SendKeyEvent(false, key, false, game)
-        task.wait(0.02)
-    end
-end
-
---------------------------------------------------
--- SISTEMA DE FARM AUTOMÁTICO MEJORADO
---------------------------------------------------
-local function advancedFarm()
+local function clicDeathTp()
+    Config.AutoFarm = true
     while Config.AutoFarm do
-        if Plr.Character and Plr.Character.Humanoid.Health > 0 then
-            local npc = getNearestAliveNPC()
-            
-            if npc then
-                local hrp = npc:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    -- Teletransportarse encima del NPC
-                    teleportAboveNPC(npc)
-                    
-                    -- Ataques ultra rápidos
-                    ultraFastAttack()
-                    
-                    -- Ataques de largo alcance adicionales
-                    longRangeAttack(npc)
-                    
-                    -- Verificar si el NPC murió
-                    if npc.Humanoid.Health <= 0 then
-                        KilledNPCs[npc] = true
-                        print("🎯 NPC ELIMINADO: " .. npc.Name)
-                    else
-                        print("⚡ Atacando: " .. npc.Name .. " | Vida: " .. math.floor(npc.Humanoid.Health))
-                    end
-                end
-            else
-                print("🔍 Buscando nuevos NPCs...")
-                -- Limpiar lista de NPCs muertos si no hay objetivos
-                if math.random(1, 10) == 1 then
-                    table.clear(KilledNPCs)
+        local npc = getNearest()
+        if npc then
+            local humanoid = npc:FindFirstChild("Humanoid")
+            -- clicar rápidamente hasta que muera
+            while humanoid and humanoid.Health > 0 and Config.AutoFarm do
+                bigClick()
+                task.wait(0.03)   -- 30 clics/seg aprox
+            end
+            -- MUERTO → teleporta al siguiente
+            if Config.AutoFarm then
+                local nextNpc = getNearest()
+                if nextNpc then
+                    Root.CFrame = nextNpc.HumanoidRootPart.CFrame + Vector3.new(0,10,0)
                 end
             end
-        else
-            print("💀 Personaje muerto - Esperando respawn...")
         end
-        
-        task.wait(Config.TeleportSpeed)
+        task.wait(0.2)
     end
 end
 
 --------------------------------------------------
--- INTERFAZ SIMPLE Y EFECTIVA
+-- UI MÍNIMA
 --------------------------------------------------
-local function createSimpleUI()
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Parent = game.CoreGui
-    
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 300, 0, 200)
-    MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Parent = ScreenGui
-    
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, 0, 0, 40)
-    Title.Position = UDim2.new(0, 0, 0, 0)
-    Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Title.Text = "⚡ BLACKZ ULTRA FARM"
-    Title.TextColor3 = Color3.fromRGB(0, 255, 255)
-    Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 20
-    Title.Parent = MainFrame
-    
-    local StatusLabel = Instance.new("TextLabel")
-    StatusLabel.Size = UDim2.new(1, 0, 0, 30)
-    StatusLabel.Position = UDim2.new(0, 0, 0, 40)
-    StatusLabel.BackgroundTransparency = 1
-    StatusLabel.Text = "Estado: ACTIVADO"
-    StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-    StatusLabel.Font = Enum.Font.SourceSans
-    StatusLabel.TextSize = 16
-    StatusLabel.Parent = MainFrame
-    
-    local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.new(0.8, 0, 0, 40)
-    ToggleBtn.Position = UDim2.new(0.1, 0, 0, 100)
-    ToggleBtn.Text = "⛔ DETENER FARM"
-    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    ToggleBtn.Parent = MainFrame
-    
-    ToggleBtn.MouseButton1Click:Connect(function()
-        Config.AutoFarm = not Config.AutoFarm
-        if Config.AutoFarm then
-            ToggleBtn.Text = "⛔ DETENER FARM"
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            StatusLabel.Text = "Estado: ACTIVADO"
-            StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-            advancedFarm()
-        else
-            ToggleBtn.Text = "🚀 ACTIVAR FARM"
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-            StatusLabel.Text = "Estado: DETENIDO"
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-        end
-    end)
-    
-    return ScreenGui
-end
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("🖱️ BLACKZ CLIC-MUERTE-TP","DarkTheme")
+local Tab = Window:NewTab("Farm")
+local Sec = Tab:NewSection("Control")
 
---------------------------------------------------
--- INICIALIZACIÓN
---------------------------------------------------
-print("⚡ BLACKZ ULTRA FARM CARGADO!")
-print("🎯 Teletransporte encima de NPCs")
-print("⚡ Ataques ultra rápidos desde lejos")
-print("🚀 Activado automáticamente")
-
--- Crear interfaz
-createSimpleUI()
-
--- Iniciar farm automáticamente
-task.spawn(advancedFarm)
-
--- Anti-AFK
-Plr.Idled:Connect(function()
-    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+Sec:NewToggle("🔥 Activar Clic-Muerte-TP","",function(s)
+    Config.AutoFarm = s
+    if s then clicDeathTp() end
 end)
 
--- Limpiar memoria periódicamente
-task.spawn(function()
-    while true do
-        task.wait(30)
-        local count = 0
-        for k, v in pairs(KilledNPCs) do
-            count = count + 1
-            if count > 50 then  -- Limitar tamaño de la tabla
-                KilledNPCs[k] = nil
-            end
-        end
-    end
+--------------------------------------------------
+-- ANTI-AFK
+--------------------------------------------------
+Plr.Idled:Connect(function()
+    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
 end)
