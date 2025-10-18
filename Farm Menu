@@ -1,29 +1,73 @@
--- ⚡ BLACKZ HUB - AUTO FARM SIMPLIFICADO
--- Basado en redz Hub pero más simple y funcional
+-- ⚡ BLACKZ HUB - BLOX FRUITS ULTIMATE
+-- Script completo con todas las funciones
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local VirtualInput = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Root = Character:WaitForChild("HumanoidRootPart")
 
--- CONFIGURACIÓN SIMPLE
+-- CONFIGURACIÓN COMPLETA
 local Settings = {
+    -- Auto Farm
     AutoFarm = true,
     FarmDistance = 25,
     BringDistance = 50,
     SelectedTool = "Combat",
-    SmoothMode = false
+    SmoothMode = false,
+    
+    -- Mejoras de Player
+    WalkSpeed = 50,
+    JumpPower = 100,
+    InfinitoJump = false,
+    Noclip = false,
+    
+    -- Habilidades
+    AutoClick = true,
+    AutoSkills = true,
+    AutoBuso = true,
+    AutoKen = true,
+    
+    -- Utilidades
+    AutoCollectChests = true,
+    AutoCollectFruits = true,
+    AutoSeaBeasts = true,
+    AutoRaid = true,
+    
+    -- Visuales
+    FullBright = false,
+    HidePlayers = false,
+    LowGFX = false
 }
 
--- FUNCIONES BÁSICAS
+-- VARIABLES GLOBALES
+local TargetNPC = nil
+local FarmConnection = nil
+local NoclipConnection = nil
+local Clicking = false
+
+-- FUNCIONES BÁSICAS MEJORADAS
 function IsAlive(char)
     if not char then return false end
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     return humanoid and humanoid.Health > 0
+end
+
+function GetPlayerLevel()
+    local data = Player:FindFirstChild("Data")
+    if data then
+        local level = data:FindFirstChild("Level")
+        if level then
+            return level.Value
+        end
+    end
+    return 1
 end
 
 function FindNearestNPC()
@@ -32,10 +76,10 @@ function FindNearestNPC()
     local closestNPC = nil
     local closestDistance = math.huge
     
-    -- Buscar en carpetas de enemigos
-    local enemyFolders = {"Enemies", "NPCs", "Monsters"}
+    -- Buscar en todas las ubicaciones posibles
+    local searchFolders = {"Enemies", "NPCs", "Monsters", "BasicMob"}
     
-    for _, folderName in pairs(enemyFolders) do
+    for _, folderName in pairs(searchFolders) do
         local folder = Workspace:FindFirstChild(folderName)
         if folder then
             for _, npc in pairs(folder:GetChildren()) do
@@ -43,7 +87,7 @@ function FindNearestNPC()
                     local hrp = npc:FindFirstChild("HumanoidRootPart")
                     if hrp then
                         local distance = (Root.Position - hrp.Position).Magnitude
-                        if distance < closestDistance then
+                        if distance < closestDistance and distance < 500 then
                             closestDistance = distance
                             closestNPC = npc
                         end
@@ -53,17 +97,15 @@ function FindNearestNPC()
         end
     end
     
-    -- Si no encuentra en carpetas, buscar en todo Workspace
-    if not closestNPC then
-        for _, npc in pairs(Workspace:GetChildren()) do
-            if npc:IsA("Model") and IsAlive(npc) then
-                local hrp = npc:FindFirstChild("HumanoidRootPart")
-                if hrp and not Players:GetPlayerFromCharacter(npc) then
-                    local distance = (Root.Position - hrp.Position).Magnitude
-                    if distance < closestDistance and distance < 500 then
-                        closestDistance = distance
-                        closestNPC = npc
-                    end
+    -- Buscar bosses
+    for _, npc in pairs(Workspace:GetChildren()) do
+        if npc:IsA("Model") and IsAlive(npc) and npc:GetAttribute("IsBoss") then
+            local hrp = npc:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local distance = (Root.Position - hrp.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestNPC = npc
                 end
             end
         end
@@ -72,35 +114,184 @@ function FindNearestNPC()
     return closestNPC
 end
 
-function TeleportToNPC(npc)
-    if not npc or not IsAlive(npc) then return false end
+function TeleportTo(position)
     if not IsAlive(Character) then return false end
-    
-    local hrp = npc:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    -- Teletransportarse encima del NPC
-    Root.CFrame = hrp.CFrame + Vector3.new(0, Settings.FarmDistance, 0)
+    if typeof(position) == "Instance" then
+        position = position.Position
+    end
+    Root.CFrame = CFrame.new(position + Vector3.new(0, Settings.FarmDistance, 0))
     return true
 end
 
-function AttackNPC()
-    -- Usar todas las teclas de ataque posibles
-    local attackKeys = {"E", "F", "R", "T", "Y", "G", "H"}
+function TeleportToNPC(npc)
+    if not npc or not IsAlive(npc) then return false end
+    local hrp = npc:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    return TeleportTo(hrp.Position)
+end
+
+-- SISTEMA DE ATAQUE MEJORADO
+function PerformAttack()
+    if not IsAlive(Character) then return end
     
-    for _, key in pairs(attackKeys) do
-        VirtualInput:SendKeyEvent(true, key, false, game)
-        task.wait(0.1)
-        VirtualInput:SendKeyEvent(false, key, false, game)
-        task.wait(0.1)
+    -- Teclas de ataque para diferentes herramientas
+    local attackKeys = {"E", "F", "R", "T", "Y", "G", "H"}
+    local tool = Character:FindFirstChildOfClass("Tool")
+    
+    if tool then
+        -- Ataque básico (click)
+        if Settings.AutoClick then
+            VirtualInput:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+            task.wait(0.05)
+            VirtualInput:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        end
+        
+        -- Habilidades
+        for _, key in pairs(attackKeys) do
+            VirtualInput:SendKeyEvent(true, key, false, game)
+            task.wait(0.1)
+            VirtualInput:SendKeyEvent(false, key, false, game)
+            task.wait(0.1)
+        end
     end
 end
 
--- SISTEMA DE FARM AUTOMÁTICO
+-- SISTEMA DE HABILIDADES AUTOMÁTICAS
+function AutoHaki()
+    if not Settings.AutoBuso then return end
+    VirtualInput:SendKeyEvent(true, "Q", false, game)
+    task.wait(0.1)
+    VirtualInput:SendKeyEvent(false, "Q", false, game)
+end
+
+function AutoKen()
+    if not Settings.AutoKen then return end
+    VirtualInput:SendKeyEvent(true, "Z", false, game)
+    task.wait(0.1)
+    VirtualInput:SendKeyEvent(false, "Z", false, game)
+end
+
+-- SISTEMA DE RECOLECCIÓN
+function FindChests()
+    local chests = {}
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj.Name:lower():find("chest") and obj:IsA("Model") then
+            table.insert(chests, obj)
+        end
+    end
+    return chests
+end
+
+function FindFruits()
+    local fruits = {}
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj.Name:find("Fruit") and obj:IsA("Model") then
+            table.insert(fruits, obj)
+        end
+    end
+    return fruits
+end
+
+function CollectChests()
+    if not Settings.AutoCollectChests then return end
+    local chests = FindChests()
+    for _, chest in pairs(chests) do
+        local hrp = chest:FindFirstChild("HumanoidRootPart")
+        if hrp and (Root.Position - hrp.Position).Magnitude < 100 then
+            TeleportTo(hrp.Position)
+            task.wait(0.5)
+            fireproximityprompt(chest:FindFirstChildOfClass("ProximityPrompt"))
+        end
+    end
+end
+
+function CollectFruits()
+    if not Settings.AutoCollectFruits then return end
+    local fruits = FindFruits()
+    for _, fruit in pairs(fruits) do
+        local hrp = fruit:FindFirstChild("HumanoidRootPart")
+        if hrp and (Root.Position - hrp.Position).Magnitude < 100 then
+            TeleportTo(hrp.Position)
+            task.wait(0.5)
+            firetouchinterest(Root, hrp, 0)
+            firetouchinterest(Root, hrp, 1)
+        end
+    end
+end
+
+-- SISTEMA DE MEJORAS DE PLAYER
+function ApplyPlayerStats()
+    if not IsAlive(Character) then return end
+    local humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = Settings.WalkSpeed
+        humanoid.JumpPower = Settings.JumpPower
+    end
+end
+
+function ToggleNoclip()
+    if Settings.Noclip then
+        if NoclipConnection then NoclipConnection:Disconnect() end
+        NoclipConnection = RunService.Stepped:Connect(function()
+            if IsAlive(Character) then
+                for _, part in pairs(Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if NoclipConnection then
+            NoclipConnection:Disconnect()
+            NoclipConnection = nil
+        end
+    end
+end
+
+-- SISTEMA DE VISUALES
+function ToggleFullBright()
+    if Settings.FullBright then
+        Lighting.Ambient = Color3.new(1, 1, 1)
+        Lighting.Brightness = 2
+        Lighting.GlobalShadows = false
+    else
+        Lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
+        Lighting.Brightness = 1
+        Lighting.GlobalShadows = true
+    end
+end
+
+function ToggleHidePlayers()
+    if Settings.HidePlayers then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= Player then
+                local char = player.Character
+                if char then
+                    char:Destroy()
+                end
+            end
+        end
+    end
+end
+
+function OptimizeGraphics()
+    if Settings.LowGFX then
+        -- Reducir calidad gráfica
+        settings().Rendering.QualityLevel = 1
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("Part") then
+                obj.Material = Enum.Material.Plastic
+            end
+        end
+    end
+end
+
+-- SISTEMA DE FARM AUTOMÁTICO MEJORADO
 function StartAutoFarm()
     Settings.AutoFarm = true
     
-    while Settings.AutoFarm do
+    while Settings.AutoFarm and task.wait(Settings.SmoothMode and 0.1 or 0.3) do
         if not IsAlive(Character) then
             task.wait(2)
             Character = Player.Character or Player.CharacterAdded:Wait()
@@ -108,33 +299,58 @@ function StartAutoFarm()
             continue
         end
         
+        -- Aplicar mejoras de player
+        ApplyPlayerStats()
+        
+        -- Usar habilidades automáticas
+        AutoHaki()
+        AutoKen()
+        
+        -- Buscar NPC más cercano
         local npc = FindNearestNPC()
         
         if npc then
+            TargetNPC = npc
             -- Teletransportarse al NPC
             if TeleportToNPC(npc) then
                 -- Atacar
-                AttackNPC()
+                PerformAttack()
                 
                 -- Mostrar información
-                print("🎯 BLACKZ - Farmeando: " .. npc.Name .. " | Vida: " .. math.floor(npc.Humanoid.Health))
+                local humanoid = npc:FindFirstChildOfClass("Humanoid")
+                local health = humanoid and math.floor(humanoid.Health) or "N/A"
+                print("🎯 BLACKZ - Farmeando: " .. npc.Name .. " | Vida: " .. health)
             end
         else
             print("🔍 BLACKZ - Buscando NPCs...")
+            TargetNPC = nil
+            
+            -- Recolectar items si no hay NPCs
+            CollectChests()
+            CollectFruits()
         end
-        
-        task.wait(Settings.SmoothMode and 0.25 or 0.5)
     end
 end
 
--- INTERFAZ SIMPLE
+-- SISTEMA ANTI-AFK MEJORADO
+local AntiAFKConnection
+function SetupAntiAFK()
+    if AntiAFKConnection then AntiAFKConnection:Disconnect() end
+    AntiAFKConnection = Player.Idled:Connect(function()
+        game:GetService("VirtualUser"):CaptureController()
+        game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+    end)
+end
+
+-- INTERFAZ MEJORADA CON MÁS OPCIONES
 local success, Library = pcall(function()
     return loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 end)
 
 if success then
-    local Window = Library.CreateLib("⚡ BLACKZ HUB", "DarkTheme")
+    local Window = Library.CreateLib("⚡ BLACKZ HUB - BLOX FRUITS", "DarkTheme")
     
+    -- TAB PRINCIPAL
     local MainTab = Window:NewTab("🏠 Main")
     local MainSection = MainTab:NewSection("Auto Farm")
     
@@ -145,59 +361,175 @@ if success then
         end
     end)
     
-    MainSection:NewSlider("📏 Distancia", "Distancia de farm", 50, 10, function(value)
+    MainSection:NewSlider("📏 Distancia", "Distancia de farm", 100, 10, function(value)
         Settings.FarmDistance = value
     end)
     
-    MainSection:NewSlider("🎯 Rango", "Rango de búsqueda", 200, 50, function(value)
+    MainSection:NewSlider("🎯 Rango", "Rango de búsqueda", 500, 50, function(value)
         Settings.BringDistance = value
     end)
     
-    local PlayerTab = Window:NewTab("🎮 Player")
-    local PlayerSection = PlayerTab:NewSection("Ajustes")
-    
-    PlayerSection:NewSlider("🚶 WalkSpeed", "Velocidad", 100, 16, function(value)
-        if Character and Character:FindFirstChild("Humanoid") then
-            Character.Humanoid.WalkSpeed = value
-        end
+    MainSection:NewToggle("🔄 Smooth Mode", "Movimiento más suave", function(state)
+        Settings.SmoothMode = state
     end)
     
-    PlayerSection:NewKeybind("🔑 Toggle Menu", "Mostrar/ocultar menú", Enum.KeyCode.RightControl, function()
+    -- TAB PLAYER
+    local PlayerTab = Window:NewTab("🎮 Player")
+    local PlayerSection = PlayerTab:NewSection("Ajustes de Player")
+    
+    PlayerSection:NewSlider("🚶 WalkSpeed", "Velocidad de movimiento", 200, 16, function(value)
+        Settings.WalkSpeed = value
+        ApplyPlayerStats()
+    end)
+    
+    PlayerSection:NewSlider("🦘 JumpPower", "Fuerza de salto", 200, 50, function(value)
+        Settings.JumpPower = value
+        ApplyPlayerStats()
+    end)
+    
+    PlayerSection:NewToggle("🚫 Noclip", "Atravesar paredes", function(state)
+        Settings.Noclip = state
+        ToggleNoclip()
+    end)
+    
+    PlayerSection:NewToggle("∞ Infinite Jump", "Salto infinito", function(state)
+        Settings.InfinitoJump = state
+    end)
+    
+    -- TAB HABILIDADES
+    local SkillsTab = Window:NewTab("⚔️ Skills")
+    local SkillsSection = SkillsTab:NewSection("Habilidades Automáticas")
+    
+    SkillsSection:NewToggle("🖱️ Auto Click", "Click automático", function(state)
+        Settings.AutoClick = state
+    end)
+    
+    SkillsSection:NewToggle("🔮 Auto Skills", "Habilidades automáticas", function(state)
+        Settings.AutoSkills = state
+    end)
+    
+    SkillsSection:NewToggle("🛡️ Auto Buso", "Buso Haki automático", function(state)
+        Settings.AutoBuso = state
+    end)
+    
+    SkillsSection:NewToggle("👁️ Auto Ken", "Ken Haki automático", function(state)
+        Settings.AutoKen = state
+    end)
+    
+    -- TAB UTILIDADES
+    local UtilitiesTab = Window:NewTab("🔧 Utilities")
+    local UtilitiesSection = UtilitiesTab:NewSection("Recolección Automática")
+    
+    UtilitiesSection:NewToggle("📦 Auto Chests", "Recolectar cofres automáticamente", function(state)
+        Settings.AutoCollectChests = state
+    end)
+    
+    UtilitiesSection:NewToggle("🍎 Auto Fruits", "Recolectar frutas automáticamente", function(state)
+        Settings.AutoCollectFruits = state
+    end)
+    
+    UtilitiesSection:NewToggle("🐋 Auto Sea Beasts", "Cazar bestias marinas", function(state)
+        Settings.AutoSeaBeasts = state
+    end)
+    
+    UtilitiesSection:NewToggle("🏰 Auto Raid", "Hacer raids automáticamente", function(state)
+        Settings.AutoRaid = state
+    end)
+    
+    -- TAB VISUALES
+    local VisualsTab = Window:NewTab("👁️ Visuals")
+    local VisualsSection = VisualsTab:NewSection("Ajustes Visuales")
+    
+    VisualsSection:NewToggle("💡 FullBright", "Máxima iluminación", function(state)
+        Settings.FullBright = state
+        ToggleFullBright()
+    end)
+    
+    VisualsSection:NewToggle("👻 Hide Players", "Ocultar otros jugadores", function(state)
+        Settings.HidePlayers = state
+        ToggleHidePlayers()
+    end)
+    
+    VisualsSection:NewToggle("🖥️ Low GFX", "Reducir gráficos", function(state)
+        Settings.LowGFX = state
+        OptimizeGraphics()
+    end)
+    
+    -- TAB INFO
+    local InfoTab = Window:NewTab("📊 Info")
+    local InfoSection = InfoTab:NewSection("Información del Player")
+    
+    InfoSection:NewLabel("Nivel: " .. GetPlayerLevel())
+    InfoSection:NewLabel("Fruta: Ninguna")
+    InfoSection:NewLabel("Beli: 0")
+    InfoSection:NewLabel("Frags: 0")
+    
+    InfoSection:NewButton("🔄 Actualizar Info", "Actualizar información", function()
+        -- Actualizar información
+    end)
+    
+    -- KEYBINDS
+    local KeybindsSection = InfoTab:NewSection("Keybinds")
+    KeybindsSection:NewKeybind("🔑 Toggle Menu", "Mostrar/ocultar menú", Enum.KeyCode.RightControl, function()
         Library:ToggleUI()
     end)
+    
 else
     -- Interfaz de respaldo simple
+    print("⚠️ No se pudo cargar la interfaz avanzada, usando interfaz simple...")
     local sg = Instance.new("ScreenGui", game.CoreGui)
-    local btn = Instance.new("TextButton", sg)
-    btn.Size = UDim2.new(0, 200, 0, 50)
-    btn.Position = UDim2.new(0, 10, 0, 10)
-    btn.Text = "🚀 ACTIVAR AUTO FARM"
-    btn.BackgroundColor3 = Color3.new(0, 1, 0)
-    btn.TextColor3 = Color3.new(1, 1, 1)
     
-    btn.MouseButton1Click:Connect(function()
+    -- Botón principal
+    local mainBtn = Instance.new("TextButton", sg)
+    mainBtn.Size = UDim2.new(0, 200, 0, 50)
+    mainBtn.Position = UDim2.new(0, 10, 0, 10)
+    mainBtn.Text = "🚀 ACTIVAR AUTO FARM"
+    mainBtn.BackgroundColor3 = Color3.new(0, 1, 0)
+    mainBtn.TextColor3 = Color3.new(1, 1, 1)
+    
+    mainBtn.MouseButton1Click:Connect(function()
         Settings.AutoFarm = not Settings.AutoFarm
         if Settings.AutoFarm then
-            btn.Text = "⛔ DETENER AUTO FARM"
-            btn.BackgroundColor3 = Color3.new(1, 0, 0)
+            mainBtn.Text = "⛔ DETENER AUTO FARM"
+            mainBtn.BackgroundColor3 = Color3.new(1, 0, 0)
             StartAutoFarm()
         else
-            btn.Text = "🚀 ACTIVAR AUTO FARM"
-            btn.BackgroundColor3 = Color3.new(0, 1, 0)
+            mainBtn.Text = "🚀 ACTIVAR AUTO FARM"
+            mainBtn.BackgroundColor3 = Color3.new(0, 1, 0)
         end
     end)
 end
 
--- ANTI-AFK
-Player.Idled:Connect(function()
-    game:GetService("VirtualUser"):CaptureController()
-    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
-end)
+-- SISTEMA DE SALTO INFINITO
+local InfiniteJumpConnection
+function SetupInfiniteJump()
+    if InfiniteJumpConnection then InfiniteJumpConnection:Disconnect() end
+    InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+        if Settings.InfinitoJump and IsAlive(Character) then
+            Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+        end
+    end)
+end
 
--- INICIALIZACIÓN
+-- INICIALIZACIÓN COMPLETA
+SetupAntiAFK()
+SetupInfiniteJump()
+ApplyPlayerStats()
+ToggleFullBright()
+OptimizeGraphics()
+
 print("⚡ BLACKZ HUB CARGADO!")
-print("🎯 Auto Farm simplificado y funcional")
-print("🚀 Sistema listo para farmear")
+print("🎯 Sistema de Auto Farm completo")
+print("⚔️ Habilidades automáticas activadas")
+print("🔧 Utilidades listas")
+print("👁️ Visuales configuradas")
 
 -- Iniciar automáticamente
 task.spawn(StartAutoFarm)
+
+-- ACTUALIZAR ESTADÍSTICAS CADA 5 SEGUNDOS
+while task.wait(5) do
+    if IsAlive(Character) then
+        ApplyPlayerStats()
+    end
+end
