@@ -1,115 +1,275 @@
---⚡ BLACKZ AUTO-FARM "ATAQUES INVISIBLES" – SEA-1
--- Teleporta ENCIMA del NPC → spam remoto → sin mover la patita
+-- ⚡ BLACKZ AUTO-FARM ULTRA - TELEPORT + ATAQUES INVISIBLES
+-- Teletransporta encima del NPC | Ataques desde lejos | Máxima velocidad
+
 local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
 local WS = game:GetService("Workspace")
-
 local Plr = Players.LocalPlayer
+
+repeat task.wait() until Plr.Character
 local Root = Plr.Character:WaitForChild("HumanoidRootPart")
 
 local Config = {
-    AutoFarm = false,
-    FarmDistance = 10,          -- altura sobre la cabeza del NPC
-    AttackDelay = 0,            -- SIN delay entre teclas (spam)
-    StuckCheckDelay = 1,
-    StuckThreshold = 2,
+    AutoFarm = true,  -- Activado por defecto
+    FarmDistance = 25, -- Altura sobre NPC
+    AttackSpeed = 0.05, -- Máxima velocidad de ataque
+    TeleportSpeed = 0.1,
 }
 
---------------------------------------------------
--- ATAQUES "INVISIBLES" A DISTANCIA
---------------------------------------------------
-local function spamAttack()
-    -- dispara las 4 teclas casi al mismo tiempo
-    for _, k in ipairs({"E","F","R","T"}) do
-        VIM:SendKeyEvent(true, k, false, game)
-        VIM:SendKeyEvent(false, k, false, game)
-    end
-end
+-- Lista de NPCs asesinados recientemente
+local KilledNPCs = {}
 
 --------------------------------------------------
--- BUSCA NPC
+-- FUNCIÓN BUSCAR NPC MÁS CERCANO Y VIVO
 --------------------------------------------------
-local function getNearest()
+local function getNearestAliveNPC()
     if not (Root and Root.Parent) then return nil end
-    local near, dist = nil, math.huge
-    for _, v in ipairs(WS.Enemies:GetChildren()) do
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-            local hrp = v:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local d = (Root.Position - hrp.Position).Magnitude
-                if d < dist then near, dist = v, d end
+    
+    local nearestNPC = nil
+    local shortestDistance = math.huge
+    local playerPos = Root.Position
+    
+    -- Buscar en todas las ubicaciones posibles
+    local searchFolders = {"Enemies", "NPCs", "Monsters", "Bandits", "Pirates"}
+    
+    for _, folderName in pairs(searchFolders) do
+        local folder = WS:FindFirstChild(folderName)
+        if folder then
+            for _, npc in pairs(folder:GetChildren()) do
+                if npc:IsA("Model") and not KilledNPCs[npc] then
+                    local humanoid = npc:FindFirstChild("Humanoid")
+                    local hrp = npc:FindFirstChild("HumanoidRootPart")
+                    
+                    if humanoid and hrp and humanoid.Health > 0 then
+                        local distance = (playerPos - hrp.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            nearestNPC = npc
+                        end
+                    elseif humanoid and humanoid.Health <= 0 then
+                        -- Marcar NPC como muerto
+                        KilledNPCs[npc] = true
+                    end
+                end
             end
         end
     end
-    return near
+    
+    -- Si no encuentra en carpetas, buscar en todo Workspace
+    if not nearestNPC then
+        for _, npc in pairs(WS:GetChildren()) do
+            if npc:IsA("Model") and not KilledNPCs[npc] then
+                local humanoid = npc:FindFirstChild("Humanoid")
+                local hrp = npc:FindFirstChild("HumanoidRootPart")
+                
+                if humanoid and hrp and humanoid.Health > 0 then
+                    -- Filtrar NPCs reales (no jugadores)
+                    if not Players:GetPlayerFromCharacter(npc) then
+                        local distance = (playerPos - hrp.Position).Magnitude
+                        if distance < shortestDistance and distance < 500 then
+                            shortestDistance = distance
+                            nearestNPC = npc
+                        end
+                    end
+                elseif humanoid and humanoid.Health <= 0 then
+                    KilledNPCs[npc] = true
+                end
+            end
+        end
+    end
+    
+    return nearestNPC
 end
 
 --------------------------------------------------
--- TELEPORTA ENCIMA + SPAM ATAQUES
+-- TELETRANSPORTE INSTANTÁNEO ENCIMA DEL NPC
 --------------------------------------------------
-local function tpSpam(npc)
-    if not (npc and npc.Parent and Root and Root.Parent) then return end
+local function teleportAboveNPC(npc)
+    if not (npc and npc.Parent and Root and Root.Parent) then return false end
+    
+    local hrp = npc:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    
+    -- Teletransportarse directamente encima del NPC
+    local targetPosition = hrp.Position + Vector3.new(0, Config.FarmDistance, 0)
+    Root.CFrame = CFrame.new(targetPosition)
+    
+    return true
+end
+
+--------------------------------------------------
+-- ATAQUES ULTRA RÁPIDOS DESDE LEJOS (INVISIBLES)
+--------------------------------------------------
+local function ultraFastAttack()
+    -- Todas las teclas de ataque posibles
+    local attackKeys = {"E", "F", "R", "T", "Y", "G", "H", "X", "C", "V", "B", "N"}
+    
+    -- Ejecutar múltiples ataques simultáneamente
+    for _, key in pairs(attackKeys) do
+        VIM:SendKeyEvent(true, key, false, game)
+    end
+    
+    task.wait(Config.AttackSpeed)
+    
+    -- Soltar todas las teclas
+    for _, key in pairs(attackKeys) do
+        VIM:SendKeyEvent(false, key, false, game)
+    end
+end
+
+--------------------------------------------------
+-- ATAQUES DE RANGO LARGO (SIN MOVERSE)
+--------------------------------------------------
+local function longRangeAttack(npc)
+    if not npc then return end
+    
     local hrp = npc:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
-    -- Siempre ENCIMA (sin tocar suelo)
-    Root.CFrame = hrp.CFrame + Vector3.new(0, Config.FarmDistance, 0)
-
-    -- Muchos ataques por segundo (sin delay)
-    for i = 1, 12 do          -- 12 "rafagas" rápidas
-        if not (npc and npc.Parent) then break end
-        spamAttack()
-        task.wait(0.02)       -- apenas 20 ms entre ráfagas
+    
+    -- Ataques especiales de largo alcance
+    local longRangeKeys = {"R", "T", "Y", "G", "H"} -- Habilidades de rango
+    
+    for _, key in pairs(longRangeKeys) do
+        VIM:SendKeyEvent(true, key, false, game)
+        task.wait(0.02)
+        VIM:SendKeyEvent(false, key, false, game)
+        task.wait(0.02)
     end
 end
 
 --------------------------------------------------
--- ANTI-ATASCOS AGRESIVO
+-- SISTEMA DE FARM AUTOMÁTICO MEJORADO
 --------------------------------------------------
-local lastPos = Root.Position
-local stuckCount = 0
-task.spawn(function()
-    while task.wait(Config.StuckCheckDelay) do
-        if not Config.AutoFarm then continue end
-        local moved = (Root.Position - lastPos).Magnitude
-        if moved < Config.StuckThreshold then
-            stuckCount += 1
-            local push = Vector3.new(math.random(-8,8), math.random(20,45), math.random(-10,-20))
-            Root.CFrame = Root.CFrame + push
-            if stuckCount > 5 then
-                Root.CFrame = CFrame.new(Root.Position + Vector3.new(math.random(-40,40),120,-math.random(60,120)))
-                stuckCount = 0
+local function advancedFarm()
+    while Config.AutoFarm do
+        if Plr.Character and Plr.Character.Humanoid.Health > 0 then
+            local npc = getNearestAliveNPC()
+            
+            if npc then
+                local hrp = npc:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    -- Teletransportarse encima del NPC
+                    teleportAboveNPC(npc)
+                    
+                    -- Ataques ultra rápidos
+                    ultraFastAttack()
+                    
+                    -- Ataques de largo alcance adicionales
+                    longRangeAttack(npc)
+                    
+                    -- Verificar si el NPC murió
+                    if npc.Humanoid.Health <= 0 then
+                        KilledNPCs[npc] = true
+                        print("🎯 NPC ELIMINADO: " .. npc.Name)
+                    else
+                        print("⚡ Atacando: " .. npc.Name .. " | Vida: " .. math.floor(npc.Humanoid.Health))
+                    end
+                end
+            else
+                print("🔍 Buscando nuevos NPCs...")
+                -- Limpiar lista de NPCs muertos si no hay objetivos
+                if math.random(1, 10) == 1 then
+                    table.clear(KilledNPCs)
+                end
             end
         else
-            stuckCount = 0
+            print("💀 Personaje muerto - Esperando respawn...")
         end
-        lastPos = Root.Position
+        
+        task.wait(Config.TeleportSpeed)
     end
-end)
+end
 
 --------------------------------------------------
--- UI RÁPIDA
+-- INTERFAZ SIMPLE Y EFECTIVA
 --------------------------------------------------
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("⚡ BLACKZ ATAQUES INVISIBLES","DarkTheme")
-local Tab = Window:NewTab("Farm")
-local Sec = Tab:NewSection("Control")
-
-Sec:NewToggle("🚀 Activar Auto-Farm","",function(s)
-    Config.AutoFarm = s
-    while Config.AutoFarm do
-        tpSpam(getNearest())
-        task.wait(0.25)     -- pequeña pausa entre NPCs
-    end
-end)
-
-Sec:NewSlider("📏 Altura sobre NPC","",50,5,function(v)
-    Config.FarmDistance = v
-end)
+local function createSimpleUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = game.CoreGui
+    
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 300, 0, 200)
+    MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Parent = ScreenGui
+    
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.Position = UDim2.new(0, 0, 0, 0)
+    Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Title.Text = "⚡ BLACKZ ULTRA FARM"
+    Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+    Title.Font = Enum.Font.SourceSansBold
+    Title.TextSize = 20
+    Title.Parent = MainFrame
+    
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Size = UDim2.new(1, 0, 0, 30)
+    StatusLabel.Position = UDim2.new(0, 0, 0, 40)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Estado: ACTIVADO"
+    StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    StatusLabel.Font = Enum.Font.SourceSans
+    StatusLabel.TextSize = 16
+    StatusLabel.Parent = MainFrame
+    
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Size = UDim2.new(0.8, 0, 0, 40)
+    ToggleBtn.Position = UDim2.new(0.1, 0, 0, 100)
+    ToggleBtn.Text = "⛔ DETENER FARM"
+    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    ToggleBtn.Parent = MainFrame
+    
+    ToggleBtn.MouseButton1Click:Connect(function()
+        Config.AutoFarm = not Config.AutoFarm
+        if Config.AutoFarm then
+            ToggleBtn.Text = "⛔ DETENER FARM"
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            StatusLabel.Text = "Estado: ACTIVADO"
+            StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            advancedFarm()
+        else
+            ToggleBtn.Text = "🚀 ACTIVAR FARM"
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+            StatusLabel.Text = "Estado: DETENIDO"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        end
+    end)
+    
+    return ScreenGui
+end
 
 --------------------------------------------------
--- ANTI-AFK
+-- INICIALIZACIÓN
 --------------------------------------------------
+print("⚡ BLACKZ ULTRA FARM CARGADO!")
+print("🎯 Teletransporte encima de NPCs")
+print("⚡ Ataques ultra rápidos desde lejos")
+print("🚀 Activado automáticamente")
+
+-- Crear interfaz
+createSimpleUI()
+
+-- Iniciar farm automáticamente
+task.spawn(advancedFarm)
+
+-- Anti-AFK
 Plr.Idled:Connect(function()
     game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+end)
+
+-- Limpiar memoria periódicamente
+task.spawn(function()
+    while true do
+        task.wait(30)
+        local count = 0
+        for k, v in pairs(KilledNPCs) do
+            count = count + 1
+            if count > 50 then  -- Limitar tamaño de la tabla
+                KilledNPCs[k] = nil
+            end
+        end
+    end
 end)
